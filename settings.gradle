@@ -1,0 +1,4 @@
+rootProject.name = 'raft'
+include 'raft-mmap'
+include 'raft-queue'
+
