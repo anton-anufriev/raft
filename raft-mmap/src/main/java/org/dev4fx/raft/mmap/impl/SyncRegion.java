@@ -37,7 +37,7 @@ public class SyncRegion implements Region {
 
     @Override
     public boolean wrap(final long position, final DirectBuffer source) {
-        final int regionOffset = (int) (position % this.length);
+        final int regionOffset = (int) (position & (this.length - 1));
         final long regionStartPosition = position - regionOffset;
         if (map(regionStartPosition)) {
             source.wrap(currentAddress + regionOffset, this.length - regionOffset);
@@ -56,10 +56,13 @@ public class SyncRegion implements Region {
             ioUnMapper.unmap(fileChannelSupplier.get(), currentAddress, length);
             currentAddress = NULL;
         }
-        fileSizeEnsurer.ensureSize(regionStartPosition + length);
-        currentAddress = ioMapper.map(fileChannelSupplier.get(), mapMode, regionStartPosition, length);
-        currentPosition = regionStartPosition;
-        return true;
+        if (fileSizeEnsurer.ensureSize(regionStartPosition + length)) {
+            currentAddress = ioMapper.map(fileChannelSupplier.get(), mapMode, regionStartPosition, length);
+            currentPosition = regionStartPosition;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     @Override

@@ -3,7 +3,7 @@ package org.def4fx.raft.queue.impl;
 import org.def4fx.raft.mmap.api.FileSizeEnsurer;
 import org.def4fx.raft.mmap.api.RegionAccessor;
 import org.def4fx.raft.queue.api.Appender;
-import org.def4fx.raft.queue.api.Enumerator;
+import org.def4fx.raft.queue.api.Poller;
 import org.def4fx.raft.queue.api.Queue;
 import org.dev4fx.raft.mmap.impl.FileInitialiser;
 import org.dev4fx.raft.mmap.impl.MappedFile;
@@ -56,8 +56,8 @@ public class MappedQueue implements Queue {
     }
 
     @Override
-    public Enumerator enumerator() {
-        return new MappedEnumerator(enumeratorRegionRingAccessor);
+    public Poller poller() {
+        return new MappedPoller(enumeratorRegionRingAccessor);
     }
 
     @Override

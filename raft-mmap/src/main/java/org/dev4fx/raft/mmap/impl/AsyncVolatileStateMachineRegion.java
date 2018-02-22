@@ -58,7 +58,7 @@ public class AsyncVolatileStateMachineRegion implements AsyncRegion {
 
     @Override
     public boolean wrap(final long position, final DirectBuffer source) {
-        final int regionOffset = (int) (position % this.length);
+        final int regionOffset = (int) (position & (this.length - 1));
         final long regionStartPosition = position - regionOffset;
         if (awaitMapped(regionStartPosition)) {
             source.wrap(address + regionOffset, this.length - regionOffset);

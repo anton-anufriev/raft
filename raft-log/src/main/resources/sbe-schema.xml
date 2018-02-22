@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sbe:messageSchema xmlns:sbe="http://fixprotocol.io/2016/sbe"
+                   package="org.dev4fx.raft.sbe"
+                   id="1"
+                   version="0"
+                   semanticVersion="1.0"
+                   description="Raft schema"
+                   byteOrder="littleEndian">
+    <types>
+        <composite name="messageHeader" description="Message identifiers and length of message root">
+            <type name="blockLength" primitiveType="uint16"/>
+            <type name="templateId" primitiveType="uint16"/>
+            <type name="schemaId" primitiveType="uint16"/>
+            <type name="version" primitiveType="uint16"/>
+        </composite>
+        <composite name="groupSizeEncoding" description="Repeating group dimensions">
+            <type name="blockLength" primitiveType="uint16"/>
+            <type name="numInGroup" primitiveType="uint16"/>
+        </composite>
+        <composite name="varStringEncoding">
+            <type name="length" primitiveType="uint32" maxValue="1073741824"/>
+            <type name="varData" primitiveType="uint8" length="0" characterEncoding="UTF-8"/>
+        </composite>
+        <composite name="varDataEncoding">
+            <type name="length" primitiveType="uint32" maxValue="1073741824"/>
+            <type name="varData" primitiveType="uint8" length="0"/>
+        </composite>
+    </types>
+    <types>
+        <enum name="BooleanType" encodingType="uint8">
+            <validValue name="F">0</validValue>
+            <validValue name="T">1</validValue>
+        </enum>
+        <type name="LogIndex" primitiveType="int64" minValue="-1"/>
+        <type name="Sequence" primitiveType="int64" minValue="0"/>
+        <type name="SourceId" primitiveType="uint16"/>
+        <type name="Term" primitiveType="int32"/>
+        <composite name="Header">
+            <type name="sourceId" primitiveType="int32"/>
+            <type name="destinationId" primitiveType="int32"/>
+            <type name="term" primitiveType="int32"/>
+        </composite>
+        <composite name="LogKey">
+            <type name="term" primitiveType="int32"/>
+            <type name="index" primitiveType="int64"/>
+        </composite>
+    </types>
+
+    <sbe:message id="1" name="VoteRequest" description="Vote Request">
+        <field name="header" id="1" type="Header"/>
+        <field name="lastLogKey" id="2" type="LogKey"/>
+    </sbe:message>
+    <sbe:message id="2" name="VoteResponse" description="Vote Response">
+        <field name="header" id="1" type="Header"/>
+        <field name="voteGranted" id="3" type="BooleanType"/>
+    </sbe:message>
+    <sbe:message id="3" name="AppendRequest" description="Append Request">
+        <field name="header" id="1" type="Header"/>
+        <field name="prevLogKey" id="4" type="LogKey"/>
+        <field name="commitLogIndex" id="5" type="LogIndex"/>
+        <group name="logEntries" id="6" dimensionType="groupSizeEncoding">
+            <field name="term" id="7" type="Term"/>
+            <field name="command" id="8" type="varDataEncoding"/>
+        </group>
+    </sbe:message>
+    <sbe:message id="4" name="AppendResponse" description="Append Response">
+        <field name="header" id="1" type="Header"/>
+        <field name="matchLogIndex" id="9" type="LogIndex"/>
+        <field name="prevLogIndex" id="10" type="LogIndex"/>
+        <field name="successful" id="11" type="BooleanType"/>
+    </sbe:message>
+    <sbe:message id="5" name="CommandRequest" description="Command Request">
+        <field name="sourceId" id="12" type="SourceId"/>
+        <field name="sequence" id="13" type="Sequence"/>
+        <field name="payload" id="14" type="varDataEncoding"/>
+    </sbe:message>
+</sbe:messageSchema>

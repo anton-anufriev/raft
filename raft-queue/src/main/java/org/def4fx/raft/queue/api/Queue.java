@@ -8,6 +8,6 @@ import java.io.Closeable;
  */
 public interface Queue extends Closeable {
     Appender appender();
-    Enumerator enumerator();
+    Poller poller();
     void close();
 }
