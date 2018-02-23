@@ -6,23 +6,23 @@ import org.dev4fx.raft.process.ProcessStep;
 
 import java.util.Objects;
 
-public class CommitedLogProcessor implements ProcessStep {
+public class CommittedLogPromoter implements ProcessStep {
     private final PersistentState persistentState;
     private final VolatileState volatileState;
     private final MessageHandler stateMachine;
-    private final MutableDirectBuffer buffer;
+    private final MutableDirectBuffer commandDecoderBuffer;
     private final int maxBatchSize;
 
 
-    public CommitedLogProcessor(final PersistentState persistentState,
+    public CommittedLogPromoter(final PersistentState persistentState,
                                 final VolatileState volatileState,
                                 final MessageHandler stateMachine,
-                                final MutableDirectBuffer buffer,
+                                final MutableDirectBuffer commandDecoderBuffer,
                                 final int maxBatchSize) {
         this.persistentState = Objects.requireNonNull(persistentState);
         this.volatileState = Objects.requireNonNull(volatileState);
         this.stateMachine = Objects.requireNonNull(stateMachine);
-        this.buffer = Objects.requireNonNull(buffer);
+        this.commandDecoderBuffer = Objects.requireNonNull(commandDecoderBuffer);
         this.maxBatchSize = maxBatchSize;
     }
 
@@ -33,8 +33,8 @@ public class CommitedLogProcessor implements ProcessStep {
         while (lastApplied < volatileState.commitIndex() && appliedCount < maxBatchSize) {
             lastApplied++;
             appliedCount++;
-            persistentState.wrap(lastApplied, buffer);
-            stateMachine.onMessage(buffer, 0, buffer.capacity());
+            persistentState.wrap(lastApplied, commandDecoderBuffer);
+            stateMachine.onMessage(commandDecoderBuffer, 0, commandDecoderBuffer.capacity());
             volatileState.lastApplied(lastApplied);
         }
         return appliedCount > 0;

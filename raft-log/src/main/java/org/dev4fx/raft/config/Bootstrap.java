@@ -2,7 +2,6 @@ package org.dev4fx.raft.config;
 
 import io.aeron.Aeron;
 import io.aeron.Image;
-import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.driver.MediaDriver;
 import org.agrona.concurrent.BackoffIdleStrategy;
@@ -32,6 +31,7 @@ import java.util.function.BiConsumer;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 public class Bootstrap {
     private static final long MAX_FILE_SIZE = 64 * 16 * 1024 * 1024;
@@ -56,9 +56,9 @@ public class Bootstrap {
         final String ipcChannel = "aeron:ipc";
         final IntFunction<String> serverTochannelMap = value -> ipcChannel;
 
-        final MessageHandler stateMachine0 = new CommandPrintinStateMachine(0);
-        final MessageHandler stateMachine1 = new CommandPrintinStateMachine(1);
-        final MessageHandler stateMachine2 = new CommandPrintinStateMachine(2);
+        final MessageHandler stateMachine0 = new LoggingStateMachine(0);
+        final MessageHandler stateMachine1 = new LoggingStateMachine(1);
+        final MessageHandler stateMachine2 = new LoggingStateMachine(2);
 
         final String commandChannel = ipcChannel;
         final int commandStreamId = 100;
@@ -134,19 +134,41 @@ public class Bootstrap {
         final String testMessage = "#------------------------------------------------#\n";
 
         final ByteBuffer byteBuffer = ByteBuffer.allocate(testMessage.getBytes().length);
-        final UnsafeBuffer commandPayloadBuffer = new UnsafeBuffer(byteBuffer);
-        commandPayloadBuffer.putBytes(0, testMessage.getBytes());
+        final UnsafeBuffer commandPayloadEncoderBuffer = new UnsafeBuffer(byteBuffer);
+        commandPayloadEncoderBuffer.putBytes(0, testMessage.getBytes());
         final int commandPayloadLength = testMessage.getBytes().length;
 
 
-        final ByteBuffer commandByteBuffer = ByteBuffer.allocateDirect(8024);
-        final UnsafeBuffer commandEncoderBuffer = new UnsafeBuffer(commandByteBuffer);
+        final ByteBuffer commandEncoderByteBuffer = ByteBuffer.allocateDirect(8024);
+        final UnsafeBuffer commandEncoderBuffer = new UnsafeBuffer(commandEncoderByteBuffer);
 
 
         final Publisher commandPublisher = new AeronPublisher(aeron.addPublication(commandChannel, commandStreamId));
-        final CommandSender commandSender = new CommandSender(commandPublisher, new MessageHeaderEncoder(), new CommandRequestEncoder(), commandEncoderBuffer);
+        final CommandSender commandSender = new CommandSender(commandPublisher,
+                new MessageHeaderEncoder(),
+                new CommandRequestEncoder(),
+                commandEncoderBuffer);
 
-        commandSender.publish(34, 345345, commandPayloadBuffer, 0, commandPayloadLength);
+        final IdGenerator idGen = new IdGenerator(() -> System.currentTimeMillis() * 10);
+        final int commandSource = 222;
+
+        commandSender.publish(commandSource, idGen.getAsLong(), commandPayloadEncoderBuffer, 0, commandPayloadLength);
+
+        try {
+            Thread.sleep(30000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        process0Shutdown.stop();
+
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        commandSender.publish(commandSource, idGen.getAsLong(), commandPayloadEncoderBuffer, 0, commandPayloadLength);
 
         process0Shutdown.awaitShutdown();
         process1Shutdown.awaitShutdown();
@@ -170,7 +192,11 @@ public class Bootstrap {
                            final BiConsumer<? super String, ? super Exception> exceptionHandler,
                            final long gracefulShutdownTimeout,
                            final TimeUnit gracefulShutdownTimeunit) throws IOException {
-        final Logger logger = LoggerFactory.getLogger(Publisher.class);
+        if (serverId < 0 || serverId >= serverCount) {
+            throw new IllegalArgumentException("Invalid serverId. Must be value [0..serverCount)");
+        }
+        final Logger outLogger = LoggerFactory.getLogger("OUT");
+        final Logger inLogger = LoggerFactory.getLogger("IN");
         final MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
         final AppendRequestEncoder appendRequestEncoder = new AppendRequestEncoder();
         final AppendResponseEncoder appendResponseEncoder = new AppendResponseEncoder();
@@ -185,16 +211,13 @@ public class Bootstrap {
         final CommandRequestDecoder commandRequestDecoder = new CommandRequestDecoder();
         final StringBuilder stringBuilder = new StringBuilder();
 
-        final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(8024);
-        final UnsafeBuffer mutableBuffer = new UnsafeBuffer(byteBuffer);
-
-        final ByteBuffer commandByteBuffer = ByteBuffer.allocateDirect(8024);
-        final UnsafeBuffer commandMutableBuffer = new UnsafeBuffer(commandByteBuffer);
-
+        final UnsafeBuffer commandDecoderBuffer = new UnsafeBuffer();
+        final ByteBuffer encoderByteBuffer = ByteBuffer.allocateDirect(8024);
+        final UnsafeBuffer encoderBuffer = new UnsafeBuffer(encoderByteBuffer);
 
         final Publisher publisher = new LoggingPublisher(
                 new AeronPublisher(aeron.addPublication(serverTochannelMap.apply(serverId), serverId)),
-                logger,
+                outLogger,
                 messageHeaderDecoder,
                 voteRequestDecoder,
                 voteResponseDecoder,
@@ -271,30 +294,33 @@ public class Bootstrap {
                 volatileState,
                 electionTimer, messageHeaderEncoder,
                 appendResponseEncoder,
-                mutableBuffer,
+                encoderBuffer,
                 publishers,
                 serverId);
 
         final VoteRequestHandler voteRequestHandler = new VoteRequestHandler(persistentState,
                 electionTimer, messageHeaderEncoder,
                 voteResponseEncoder,
-                mutableBuffer,
+                encoderBuffer,
                 publishers,
                 serverId);
 
         final Predicate<HeaderDecoder> destinationFilter = DestinationFilter.forServer(serverId);
 
         final ServerState followerServerState = new HeaderFilteringServerState(destinationFilter,
-            new HighTermHandlingServerState(
-                    new FollowerServerState(appendRequestHandler,
-                            voteRequestHandler,
-                            serverId,
-                            electionTimer),
-                    persistentState)
-        );
+            new LoggingServerState(
+                new HighTermHandlingServerState(
+                        new FollowerServerState(appendRequestHandler,
+                                voteRequestHandler,
+                                electionTimer),
+                        persistentState),
+                stringBuilder,
+                inLogger
+            ));
 
         final ServerState candidateServerState = new HeaderFilteringServerState(destinationFilter,
-                new HighTermHandlingServerState(
+                new LoggingServerState(
+                    new HighTermHandlingServerState(
                         new CandidateServerState(persistentState,
                                 followersState,
                                 appendRequestHandler,
@@ -302,54 +328,70 @@ public class Bootstrap {
                                 serverId,
                                 messageHeaderEncoder,
                                 voteRequestEncoder,
-                                mutableBuffer,
+                                encoderBuffer,
                                 publishers),
-                        persistentState
-
-                )
-        );
+                        persistentState),
+                    stringBuilder,
+                    inLogger
+                ));
 
         final ServerState leaderServerState = new HeaderFilteringServerState(destinationFilter,
-                new HighTermHandlingServerState(
+                new LoggingServerState(
+                    new HighTermHandlingServerState(
                         new LeaderServerState(persistentState,
                                 volatileState,
                                 followersState,
                                 serverId,
                                 appendRequestEncoder,
                                 messageHeaderEncoder,
-                                mutableBuffer,
-                                commandMutableBuffer,
+                                encoderBuffer,
+                                commandDecoderBuffer,
                                 publishers),
-                        persistentState)
-        );
+                        persistentState),
+                    stringBuilder,
+                    inLogger
+                ));
 
         final ServerMessageHandler serverMessageHandler = new ServerMessageHandler(messageHeaderDecoder,
                 voteRequestDecoder,
                 voteResponseDecoder,
                 appendRequestDecoder,
                 appendResponseDecoder,
-                commandRequestDecoder,
                 candidateServerState,
                 leaderServerState,
                 followerServerState);
 
         final List<ProcessStep> processSteps = new ArrayList<>(serverCount + 2);
-        ServerIterator
-                .create()
-                    .forEach(serverId,serverCount)
-                    .accept((fromServerId, toServerId) -> {
-                        processSteps.add(new AeronSubscriptionPoller(aeron.addSubscription(serverTochannelMap.apply(toServerId), toServerId), serverMessageHandler, maxMessagesPolledForSubscription));
-                        processSteps.add(new AeronSubscriptionPoller(aeron.addSubscription(commandChannel, commandStreamId), serverMessageHandler, 1));
-                    });
-        processSteps.add(serverMessageHandler);
-        processSteps.add(new CommitedLogProcessor(persistentState, volatileState, stateMachineHandler, mutableBuffer, maxCommitBatchSize));
 
-        return new Process("Server"+ serverId,
+        IntStream.range(0, serverCount)
+                .filter(destinationId -> destinationId != serverId)
+                .forEach(destinationId -> {
+                    outLogger.info("Creating subscriptions: From {}, to {}", serverId, destinationId);
+                    processSteps.add(new AeronSubscriptionPoller(aeron.addSubscription(serverTochannelMap.apply(destinationId), destinationId), serverMessageHandler, maxMessagesPolledForSubscription));
+                });
+        processSteps.add(new AeronSubscriptionPoller(aeron.addSubscription(commandChannel, commandStreamId), serverMessageHandler, 1));
+        processSteps.add(serverMessageHandler);
+        processSteps.add(new CommittedLogPromoter(persistentState, volatileState, stateMachineHandler, commandDecoderBuffer, maxCommitBatchSize));
+
+        final Runnable onProcessStart = serverMessageHandler::init;
+        final Runnable onProcessStop = () -> {
+            headerRegionRingAccessor.close();
+            indexRegionRingAccessor.close();
+            payloadRegionRingAccessor.close();
+            headerFile.close();
+            indexFile.close();
+            payloadFile.close();
+        };
+
+        return new Process("Server" + serverId,
+                onProcessStart,
+                onProcessStop,
                 idleStrategy,
                 exceptionHandler,
                 gracefulShutdownTimeout,
                 gracefulShutdownTimeunit,
-                processSteps.toArray(new ProcessStep[processSteps.size()]));
+                processSteps.toArray(new ProcessStep[processSteps.size()])
+        );
     }
 
 

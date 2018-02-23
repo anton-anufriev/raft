@@ -12,7 +12,8 @@ public final class Follower {
     private long nextIndex;
     private long matchIndex;
 
-    public Follower(final int serverId, final Timer heartbeatTimer) {
+    public Follower(final int serverId,
+                    final Timer heartbeatTimer) {
         this.serverId = serverId;
         this.heartbeatTimer = Objects.requireNonNull(heartbeatTimer);
         nextIndex = -1;

@@ -5,15 +5,15 @@ import org.dev4fx.raft.sbe.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CommandPrintinStateMachine implements MessageHandler {
-    private final static Logger LOGGER = LoggerFactory.getLogger(CommandPrintinStateMachine.class);
+public class LoggingStateMachine implements MessageHandler {
+    private final static Logger LOGGER = LoggerFactory.getLogger("SM");
 
     private final int serverId;
     private final CommandRequestDecoder commandRequestDecoder = new CommandRequestDecoder();
     private final MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
     private final StringBuilder stringBuilder = new StringBuilder();
 
-    public CommandPrintinStateMachine(final int serverId) {
+    public LoggingStateMachine(final int serverId) {
         this.serverId = serverId;
     }
 
@@ -28,10 +28,18 @@ public class CommandPrintinStateMachine implements MessageHandler {
                 commandRequestDecoder.wrap(source,headerLenght + offset,
                         CommandRequestDecoder.BLOCK_LENGTH,
                         CommandRequestDecoder.SCHEMA_VERSION);
-                commandRequestDecoder.appendTo(stringBuilder);
+                stringBuilder
+                        .append("Command: sourceId=")
+                        .append(commandRequestDecoder.sourceId())
+                        .append(", sequence=")
+                        .append(commandRequestDecoder.sequence())
+                        .append(", payload=");
+
+                final VarDataEncodingDecoder payloadDecoder = commandRequestDecoder.payload();
+                stringBuilder.append(payloadDecoder.buffer().getStringAscii(payloadDecoder.offset()));
+                LOGGER.info("{}", stringBuilder);
+
                 break;
         }
-        LOGGER.info("=======SM: {}, {}", serverId, stringBuilder);
-
     }
 }

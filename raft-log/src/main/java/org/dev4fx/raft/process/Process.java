@@ -20,6 +20,8 @@ public class Process implements Service.Start {
 
 
     public Process(final String name,
+                   final Runnable onStartHandler,
+                   final Runnable onStopHandler,
                    final IdleStrategy idleStrategy,
                    final BiConsumer<? super String, ? super Exception> exceptionHandler,
                    final long gracefulShutdownTimeout,
@@ -27,7 +29,10 @@ public class Process implements Service.Start {
                    final ProcessStep... steps) {
         this.gracefulShutdownTimeunit = Objects.requireNonNull(gracefulShutdownTimeunit);
         this.gracefulShutdownTimeout = gracefulShutdownTimeout;
+
         this.processLoop = new ProcessLoop(name,
+                onStartHandler,
+                onStopHandler,
                 stopping::get,
                 () -> System.currentTimeMillis() > gracefulShutdownMaxTime.get(),
                 idleStrategy,

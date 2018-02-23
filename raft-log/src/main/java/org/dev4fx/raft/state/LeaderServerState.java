@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Objects;
 
 public class LeaderServerState implements ServerState {
-    private static final Logger LOGGER = LoggerFactory.getLogger(LeaderServerState.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Role.LEADER.name());
 
     private final PersistentState persistentState;
     private final VolatileState volatileState;
@@ -20,7 +20,7 @@ public class LeaderServerState implements ServerState {
     private final AppendRequestEncoder appendRequestEncoder;
     private final MessageHeaderEncoder messageHeaderEncoder;
     private final MutableDirectBuffer encoderBuffer;
-    private final MutableDirectBuffer commandBuffer;
+    private final MutableDirectBuffer commandDecoderBuffer;
 
     private final Publishers publishers;
 
@@ -32,7 +32,7 @@ public class LeaderServerState implements ServerState {
                              final AppendRequestEncoder appendRequestEncoder,
                              final MessageHeaderEncoder messageHeaderEncoder,
                              final MutableDirectBuffer encoderBuffer,
-                             final MutableDirectBuffer commandBuffer,
+                             final MutableDirectBuffer commandDecoderBuffer,
                              final Publishers publishers) {
         this.persistentState = Objects.requireNonNull(persistentState);
         this.volatileState = Objects.requireNonNull(volatileState);
@@ -41,7 +41,7 @@ public class LeaderServerState implements ServerState {
         this.appendRequestEncoder = Objects.requireNonNull(appendRequestEncoder);
         this.messageHeaderEncoder = Objects.requireNonNull(messageHeaderEncoder);
         this.encoderBuffer = Objects.requireNonNull(encoderBuffer);
-        this.commandBuffer = Objects.requireNonNull(commandBuffer);
+        this.commandDecoderBuffer = Objects.requireNonNull(commandDecoderBuffer);
         this.publishers = Objects.requireNonNull(publishers);
     }
 
@@ -53,17 +53,17 @@ public class LeaderServerState implements ServerState {
 
     @Override
     public void onTransition() {
-        LOGGER.info("LEADER: transitioned, server: {}", serverId);
+        LOGGER.info("Transitioned");
         followersState.resetFollowers(persistentState.size());
-        sendAndResetHeartbeatAppendRequestToAll(true);
+        sendAppendRequestToAllAndResetHeartbeatTimer();
     }
 
     @Override
     public Transition processTick() {
         followersState.forEach(follower -> {
             if (follower.heartbeatTimer().hasTimeoutElapsed()) {
-                LOGGER.info("LEADER: heartbeatTimer, send heartbeat from server: {} to {}", serverId, follower.serverId());
-                sendAppendRequest(follower, true);
+                LOGGER.info("Heartbeat timer elapsed, send heartbeat to {}", follower.serverId());
+                sendAppendRequest(follower, false);
                 follower.heartbeatTimer().reset();
             }
         });
@@ -74,40 +74,37 @@ public class LeaderServerState implements ServerState {
     @Override
     public Transition onAppendResponse(final AppendResponseDecoder appendResponseDecoder) {
         final HeaderDecoder headerDecoder = appendResponseDecoder.header();
-        final int destinationId = headerDecoder.destinationId();
         final int sourceId = headerDecoder.sourceId();
         final long requestPrevLogIndex = appendResponseDecoder.prevLogIndex();
 
-        if (destinationId == serverId) {
-            final Follower follower = followersState.follower(sourceId);
-            final BooleanType successful = appendResponseDecoder.successful();
-            if (successful == BooleanType.F) {
-                LOGGER.info("LEADER: appendResponse unsuccessful, server: {}", serverId);
-                if (!follower.comparePreviousAndDecrementNextIndex(requestPrevLogIndex)) {
-                    LOGGER.info("LEADER: unsuccessful appendResponse is out of order, server: {}", serverId);
-                }
-                sendAppendRequest(follower, true);
-            } else {
-                LOGGER.info("LEADER: appendResponse successful, server: {}", serverId);
-                final long matchLogIndex = appendResponseDecoder.matchLogIndex();
-                if (!follower.comparePreviousAndUpdateMatchAndNextIndex(requestPrevLogIndex, matchLogIndex)) {
-                    LOGGER.info("LEADER: successful appendResponse is out of order, server: {}", serverId);
-                }
-                //if follower.matchLogIndex < follower.nextIndex - 1
-                // sendAppendRequestTo(follower, false)
+        final Follower follower = followersState.follower(sourceId);
+        final BooleanType successful = appendResponseDecoder.successful();
+        if (successful == BooleanType.F) {
+            LOGGER.info("Unsuccessful appendResponse from server {}", sourceId);
+            if (!follower.comparePreviousAndDecrementNextIndex(requestPrevLogIndex)) {
+                LOGGER.info("Unsuccessful appendResponse prevLogIndex {} does not match {}", requestPrevLogIndex, follower.previousIndex());
             }
-            follower.heartbeatTimer().reset();
+            sendAppendRequest(follower, true);
+        } else {
+            LOGGER.info("Successful appendResponse from server {}", sourceId);
+            final long matchLogIndex = appendResponseDecoder.matchLogIndex();
+            if (!follower.comparePreviousAndUpdateMatchAndNextIndex(requestPrevLogIndex, matchLogIndex)) {
+                LOGGER.info("Successful appendResponse prevLogIndex {} does not match {}", requestPrevLogIndex, follower.previousIndex());
+            }
+            if (follower.matchIndex() < follower.previousIndex()) {
+                sendAppendRequest(follower, false);
+            }
         }
+        follower.heartbeatTimer().reset();
         updateCommitIndex();
         return Transition.STEADY;
     }
 
     @Override
     public Transition onCommandRequest(DirectBuffer buffer, int offset, int length) {
-        LOGGER.info("LEADER: command received on server: {}, {}", serverId);
+        LOGGER.info("Command received, length={}", length);
         persistentState.append(persistentState.currentTerm(), buffer, offset, length);
-        //!!!! adds latency
-        sendAndResetHeartbeatAppendRequestToAll(false);
+        sendAppendRequestToAllAndResetHeartbeatTimer();
 
         return Transition.STEADY;
     }
@@ -119,14 +116,14 @@ public class LeaderServerState implements ServerState {
         long nextCommitIndex = followersState.majorityCommitIndex(currentCommitIndex, currentTerm, persistentState::term);
 
         if (nextCommitIndex > currentCommitIndex) {
-            LOGGER.info("LEADER: update commit index {}", nextCommitIndex);
+            LOGGER.info("Update commit index {}", nextCommitIndex);
             volatileState.commitIndex(nextCommitIndex);
         }
     }
 
-    private void sendAndResetHeartbeatAppendRequestToAll(final boolean empty) {
-        followersState.forEach(empty, (empty1 , follower) -> {
-            sendAppendRequest(follower, empty1);
+    private void sendAppendRequestToAllAndResetHeartbeatTimer() {
+        followersState.forEach(follower -> {
+            sendAppendRequest(follower, false);
             follower.heartbeatTimer().reset();
         });
     }
@@ -162,21 +159,30 @@ public class LeaderServerState implements ServerState {
             appendRequestEncoder.logEntriesCount(0);
             messageLength = headerLength + appendRequestEncoder.encodedLength();
         } else {
+            final long matchIndex = follower.matchIndex();
             final long nextLogIndex = follower.nextIndex();
-            final int termAtNextLogIndex = persistentState.term(nextLogIndex);
-            persistentState.wrap(nextLogIndex, commandBuffer);
-            final int commandLength = commandBuffer.capacity();
+            final long lastIndex = persistentState.lastIndex();
 
-            final VarDataEncodingEncoder commandEncoder = appendRequestEncoder
-                    .logEntriesCount(1)
-                    .next()
-                    .term(termAtNextLogIndex)
-                    .command().length(commandLength);
+            if (matchIndex == nextLogIndex - 1 && nextLogIndex <= lastIndex) {
 
-            final int commandOffset = commandEncoder.offset() + commandEncoder.encodedLength();
+                final int termAtNextLogIndex = persistentState.term(nextLogIndex);
+                persistentState.wrap(nextLogIndex, commandDecoderBuffer);
+                final int commandLength = commandDecoderBuffer.capacity();
 
-            commandBuffer.getBytes(0, encoderBuffer, commandOffset, commandLength);
-            messageLength = commandOffset + commandLength;
+                final VarDataEncodingEncoder commandEncoder = appendRequestEncoder
+                        .logEntriesCount(1)
+                        .next()
+                        .term(termAtNextLogIndex)
+                        .command().length(commandLength);
+
+                final int commandOffset = commandEncoder.offset() + commandEncoder.encodedLength();
+
+                commandDecoderBuffer.getBytes(0, encoderBuffer, commandOffset, commandLength);
+                messageLength = commandOffset + commandLength;
+            } else {
+                appendRequestEncoder.logEntriesCount(0);
+                messageLength = headerLength + appendRequestEncoder.encodedLength();
+            }
         }
 
         return publishers.lookup(follower.serverId()).publish(encoderBuffer, 0, messageLength);

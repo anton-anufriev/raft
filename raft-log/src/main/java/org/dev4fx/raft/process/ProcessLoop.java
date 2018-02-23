@@ -12,6 +12,8 @@ public class ProcessLoop implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessLoop.class);
 
     private final String name;
+    private final Runnable onStartHandler;
+    private final Runnable onStopHandler;
     private final BooleanSupplier shutdownCondition;
     private final BooleanSupplier shutdownAbortCondition;
     private final IdleStrategy idleStrategy;
@@ -19,12 +21,16 @@ public class ProcessLoop implements Runnable {
     private final ProcessStep[] steps;
 
     public ProcessLoop(final String name,
+                       final Runnable onStartHandler,
+                       final Runnable onStopHandler,
                        final BooleanSupplier shutdownCondition,
                        final BooleanSupplier shutdownAbortCondition,
                        final IdleStrategy idleStrategy,
                        final BiConsumer<? super String, ? super Exception> exceptionHandler,
                        final ProcessStep... steps) {
         this.name = Objects.requireNonNull(name);
+        this.onStartHandler = Objects.requireNonNull(onStartHandler);
+        this.onStopHandler = Objects.requireNonNull(onStopHandler);
         this.shutdownCondition = Objects.requireNonNull(shutdownCondition);
         this.shutdownAbortCondition = Objects.requireNonNull(shutdownAbortCondition);
         this.idleStrategy = Objects.requireNonNull(idleStrategy);
@@ -34,7 +40,9 @@ public class ProcessLoop implements Runnable {
 
     @Override
     public void run() {
+        onStartHandler.run();
         executeLoop();
+        onStopHandler.run();
     }
 
     private boolean executeLoop() {

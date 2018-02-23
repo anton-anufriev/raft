@@ -9,14 +9,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 public class CandidateServerState implements ServerState {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CandidateServerState.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Role.CANDIDATE.name());
 
     private final PersistentState persistentState;
     private final FollowersState followersState;
-    private final Function<? super AppendRequestDecoder, ? extends Transition> appendRequestHandler;
+    private final BiFunction<? super AppendRequestDecoder, ? super Logger, ? extends Transition> appendRequestHandler;
     private final Timer electionTimer;
     private final int serverId;
     private final MessageHeaderEncoder messageHeaderEncoder;
@@ -28,7 +28,7 @@ public class CandidateServerState implements ServerState {
 
     public CandidateServerState(final PersistentState persistentState,
                                 final FollowersState followersState,
-                                final Function<? super AppendRequestDecoder, ? extends Transition> appendRequestHandler,
+                                final BiFunction<? super AppendRequestDecoder, ? super Logger, ? extends Transition> appendRequestHandler,
                                 final Timer electionTimer,
                                 final int serverId,
                                 final MessageHeaderEncoder messageHeaderEncoder,
@@ -53,22 +53,21 @@ public class CandidateServerState implements ServerState {
 
     @Override
     public void onTransition() {
-        LOGGER.info("CANDIDATE: transitioned, server: {}", serverId);
+        LOGGER.info("Transitioned");
         startNewElection();
     }
 
     @Override
     public Transition processTick() {
         if (electionTimer.hasTimeoutElapsed()) {
-            LOGGER.info("CANDIDATE: electionTimer, new election, server: {}", serverId);
+            LOGGER.info("Election timer elapsed");
             startNewElection();
         }
         return Transition.STEADY;
     }
 
-
     private void startNewElection() {
-        LOGGER.info("CANDIDATE: Start new election, server: {}", serverId);
+        LOGGER.info("Starting new election");
 
         persistentState.clearVoteAndIncCurrentTerm();
         electionTimer.restart();
@@ -86,22 +85,23 @@ public class CandidateServerState implements ServerState {
         if (appendRequestTerm >= currentTerm) {
             return Transition.TO_FOLLOWER;
         } else {
-            final Transition transition = appendRequestHandler.apply(appendRequestDecoder);
-            return transition;
+            return appendRequestHandler.apply(appendRequestDecoder, LOGGER);
         }
     }
 
     @Override
     public Transition onVoteResponse(final VoteResponseDecoder voteResponseDecoder) {
+        final HeaderDecoder header = voteResponseDecoder.header();
         final int currentTerm = persistentState.currentTerm();
-        final int term = voteResponseDecoder.header().term();
+        final int term = header.term();
+        final int sourceId = header.sourceId();
         final BooleanType voteGranted = voteResponseDecoder.voteGranted();
 
         if (term == currentTerm && voteGranted == BooleanType.T) {
-            LOGGER.info("CANDIDATE: Vote granted to {}", serverId);
+            LOGGER.info("Vote granted by server {}", sourceId);
             return incVoteCount();
         }
-        LOGGER.info("CANDIDATE: Vote NOT granted to {}", serverId);
+        LOGGER.info("Vote declined by server {}", sourceId);
         return Transition.STEADY;
     }
 
@@ -139,6 +139,7 @@ public class CandidateServerState implements ServerState {
         votesCount++;
         final int majority = followersState.majority();
         if (votesCount >= majority) {
+            LOGGER.info("Received votes {}, majority {}", votesCount, majority);
             return Transition.TO_LEADER;
         }
         return Transition.STEADY;

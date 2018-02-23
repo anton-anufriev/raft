@@ -9,17 +9,12 @@ import java.util.function.Function;
 
 import static org.dev4fx.raft.state.Transition.STEADY;
 
-public class ServerMessageHandler implements MessageHandler, ProcessStep {
+public final class ServerMessageHandler implements MessageHandler, ProcessStep {
     private final MessageHeaderDecoder messageHeaderDecoder;
     private final VoteRequestDecoder voteRequestDecoder;
     private final VoteResponseDecoder voteResponseDecoder;
     private final AppendRequestDecoder appendRequestDecoder;
     private final AppendResponseDecoder appendResponseDecoder;
-    private final CommandRequestDecoder commandRequestDecoder;
-
-    private final ServerState candidateState;
-    private final ServerState leaderState;
-    private final ServerState followerState;
 
     private ServerState serverState;
     private final Function<Role, ServerState> roleToState;
@@ -29,7 +24,6 @@ public class ServerMessageHandler implements MessageHandler, ProcessStep {
                                 final VoteResponseDecoder voteResponseDecoder,
                                 final AppendRequestDecoder appendRequestDecoder,
                                 final AppendResponseDecoder appendResponseDecoder,
-                                final CommandRequestDecoder commandRequestDecoder,
                                 final ServerState candidateState,
                                 final ServerState leaderState,
                                 final ServerState followerState) {
@@ -38,10 +32,9 @@ public class ServerMessageHandler implements MessageHandler, ProcessStep {
         this.voteResponseDecoder = Objects.requireNonNull(voteResponseDecoder);
         this.appendRequestDecoder = Objects.requireNonNull(appendRequestDecoder);
         this.appendResponseDecoder = Objects.requireNonNull(appendResponseDecoder);
-        this.commandRequestDecoder = Objects.requireNonNull(commandRequestDecoder);
-        this.candidateState = Objects.requireNonNull(candidateState);
-        this.leaderState = Objects.requireNonNull(leaderState);
-        this.followerState = Objects.requireNonNull(followerState);
+        Objects.requireNonNull(candidateState);
+        Objects.requireNonNull(leaderState);
+        Objects.requireNonNull(followerState);
         this.serverState = followerState;
         this.roleToState = role -> {
             if (role == leaderState.role()) return leaderState;
@@ -49,7 +42,10 @@ public class ServerMessageHandler implements MessageHandler, ProcessStep {
             if (role == candidateState.role()) return candidateState;
             throw new IllegalArgumentException("No state for role " + role);
         };
-        this.serverState.onTransition(); //possibly need to to it after start
+    }
+
+    public void init() {
+        this.serverState.onTransition();
     }
 
     @Override
@@ -69,30 +65,29 @@ public class ServerMessageHandler implements MessageHandler, ProcessStep {
     public void onMessage(final DirectBuffer source, final int offset, final int length) {
         messageHeaderDecoder.wrap(source, offset);
         final int templateId = messageHeaderDecoder.templateId();
-        final int headerLenght = messageHeaderDecoder.encodedLength();
+        final int headerLength = messageHeaderDecoder.encodedLength();
         final Transition transition;
         switch (templateId) {
             case VoteRequestDecoder.TEMPLATE_ID :
-                voteRequestDecoder.wrap(source,headerLenght + offset,
+                voteRequestDecoder.wrap(source,headerLength + offset,
                         VoteRequestDecoder.BLOCK_LENGTH,
                         VoteRequestDecoder.SCHEMA_VERSION);
                 transition = serverState.onVoteRequest(voteRequestDecoder);
                 break;
             case VoteResponseDecoder.TEMPLATE_ID :
-                voteResponseDecoder.wrap(source,headerLenght + offset,
+                voteResponseDecoder.wrap(source,headerLength + offset,
                         VoteResponseDecoder.BLOCK_LENGTH,
                         VoteResponseDecoder.SCHEMA_VERSION);
                 transition = serverState.onVoteResponse(voteResponseDecoder);
                 break;
-
             case AppendRequestDecoder.TEMPLATE_ID :
-                appendRequestDecoder.wrap(source,headerLenght + offset,
+                appendRequestDecoder.wrap(source,headerLength + offset,
                         AppendRequestDecoder.BLOCK_LENGTH,
                         AppendRequestDecoder.SCHEMA_VERSION);
                 transition = serverState.onAppendRequest(appendRequestDecoder);
                 break;
             case AppendResponseDecoder.TEMPLATE_ID :
-                appendResponseDecoder.wrap(source,headerLenght + offset,
+                appendResponseDecoder.wrap(source,headerLength + offset,
                         AppendResponseDecoder.BLOCK_LENGTH,
                         AppendResponseDecoder.SCHEMA_VERSION);
                 transition = serverState.onAppendResponse(appendResponseDecoder);

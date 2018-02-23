@@ -6,14 +6,14 @@ import org.slf4j.Logger;
 
 import java.util.Objects;
 
-public class MessageLoggingServerState implements ServerState {
+public class LoggingServerState implements ServerState {
     private final ServerState delegateServerState;
     private final StringBuilder stringBuilder;
     private final Logger logger;
 
-    public MessageLoggingServerState(final ServerState delegateServerState,
-                                     final StringBuilder stringBuilder,
-                                     final Logger logger) {
+    public LoggingServerState(final ServerState delegateServerState,
+                              final StringBuilder stringBuilder,
+                              final Logger logger) {
         this.delegateServerState = Objects.requireNonNull(delegateServerState);
         this.stringBuilder = Objects.requireNonNull(stringBuilder);
         this.logger = Objects.requireNonNull(logger);

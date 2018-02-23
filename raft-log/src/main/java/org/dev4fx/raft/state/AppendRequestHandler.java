@@ -5,11 +5,13 @@ import org.dev4fx.raft.log.api.PersistentState;
 import org.dev4fx.raft.sbe.*;
 import org.dev4fx.raft.timer.Timer;
 import org.dev4fx.raft.transport.Publishers;
+import org.slf4j.Logger;
 
 import java.util.Objects;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class AppendRequestHandler implements Function<AppendRequestDecoder, Transition> {
+public class AppendRequestHandler implements BiFunction<AppendRequestDecoder, Logger, Transition> {
     private final PersistentState persistentState;
     private final VolatileState volatileState;
     private final Timer electionTimeout;
@@ -38,7 +40,7 @@ public class AppendRequestHandler implements Function<AppendRequestDecoder, Tran
     }
 
     @Override
-    public Transition apply(final AppendRequestDecoder appendRequestDecoder) {
+    public Transition apply(final AppendRequestDecoder appendRequestDecoder, final Logger logger) {
         final int appendRequestTerm = appendRequestDecoder.header().term();
         final int currentTerm = persistentState.currentTerm();
 
@@ -54,7 +56,6 @@ public class AppendRequestHandler implements Function<AppendRequestDecoder, Tran
         if (appendRequestTerm < currentTerm) {
             successful = false;
         } else {
-            //appendRequestTerm == currentTerm, as HigherTermHandler would
             final long leaderCommitIndex = appendRequestDecoder.commitLogIndex();
 
             final LogContainment containment = persistentState.contains(requestPrevIndex, requestPrevTermAtIndex);

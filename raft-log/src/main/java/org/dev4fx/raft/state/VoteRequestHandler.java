@@ -5,11 +5,12 @@ import org.dev4fx.raft.log.api.PersistentState;
 import org.dev4fx.raft.sbe.*;
 import org.dev4fx.raft.timer.Timer;
 import org.dev4fx.raft.transport.Publishers;
+import org.slf4j.Logger;
 
 import java.util.Objects;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
-public class VoteRequestHandler implements Function<VoteRequestDecoder, Transition> {
+public class VoteRequestHandler implements BiFunction<VoteRequestDecoder, Logger, Transition> {
     private final PersistentState persistentState;
     private final Timer electionTimer;
     private final MessageHeaderEncoder messageHeaderEncoder;
@@ -36,7 +37,7 @@ public class VoteRequestHandler implements Function<VoteRequestDecoder, Transiti
     }
 
     @Override
-    public Transition apply(final VoteRequestDecoder voteRequestDecoder) {
+    public Transition apply(final VoteRequestDecoder voteRequestDecoder, final Logger logger) {
         final HeaderDecoder header = voteRequestDecoder.header();
         final int requestTerm = header.term();
         final int candidateId = header.sourceId();
