@@ -4,7 +4,7 @@ import org.agrona.MutableDirectBuffer;
 import org.dev4fx.raft.log.api.PersistentState;
 import org.dev4fx.raft.sbe.*;
 import org.dev4fx.raft.timer.Timer;
-import org.dev4fx.raft.transport.Publishers;
+import org.dev4fx.raft.transport.Publisher;
 import org.slf4j.Logger;
 
 import java.util.Objects;
@@ -16,7 +16,7 @@ public class VoteRequestHandler implements BiFunction<VoteRequestDecoder, Logger
     private final MessageHeaderEncoder messageHeaderEncoder;
     private final VoteResponseEncoder voteResponseEncoder;
     private final MutableDirectBuffer encoderBuffer;
-    private final Publishers publishers;
+    private final Publisher publisher;
     private final int serverId;
 
 
@@ -25,14 +25,14 @@ public class VoteRequestHandler implements BiFunction<VoteRequestDecoder, Logger
                               final MessageHeaderEncoder messageHeaderEncoder,
                               final VoteResponseEncoder voteResponseEncoder,
                               final MutableDirectBuffer encoderBuffer,
-                              final Publishers publishers,
+                              final Publisher publisher,
                               final int serverId) {
         this.persistentState = Objects.requireNonNull(persistentState);
         this.electionTimer = Objects.requireNonNull(electionTimer);
         this.messageHeaderEncoder = Objects.requireNonNull(messageHeaderEncoder);
         this.voteResponseEncoder = Objects.requireNonNull(voteResponseEncoder);
         this.encoderBuffer = Objects.requireNonNull(encoderBuffer);
-        this.publishers = Objects.requireNonNull(publishers);
+        this.publisher = Objects.requireNonNull(publisher);
         this.serverId = serverId;
     }
 
@@ -50,9 +50,7 @@ public class VoteRequestHandler implements BiFunction<VoteRequestDecoder, Logger
         if (persistentState.currentTerm() <= requestTerm && persistentState.lastKeyCompareTo(requestLastLogIndex, requestLastLogTerm) <= 0) {
             if (persistentState.vote() == PersistentState.NULL_VOTE) {
                 persistentState.vote(candidateId);
-                //Why transition is TO_FOLLOWER?
-                //in this case we should not replay the event!?
-                transition = Transition.TO_FOLLOWER;
+                transition = Transition.TO_FOLLOWER_NO_REPLAY;
                 granted = true;
             } else {
                 granted = persistentState.vote() == candidateId;
@@ -82,7 +80,7 @@ public class VoteRequestHandler implements BiFunction<VoteRequestDecoder, Logger
         voteResponseEncoder
                 .voteGranted(granted ? BooleanType.T : BooleanType.F);
 
-        publishers.lookup(candidateId).publish(encoderBuffer, 0, headerLength + voteResponseEncoder.encodedLength());
+        publisher.publish(encoderBuffer, 0, headerLength + voteResponseEncoder.encodedLength());
         return transition;
     }
 }

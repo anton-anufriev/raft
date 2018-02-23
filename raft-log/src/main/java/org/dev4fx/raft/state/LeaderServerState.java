@@ -4,7 +4,7 @@ import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.dev4fx.raft.log.api.PersistentState;
 import org.dev4fx.raft.sbe.*;
-import org.dev4fx.raft.transport.Publishers;
+import org.dev4fx.raft.transport.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +22,7 @@ public class LeaderServerState implements ServerState {
     private final MutableDirectBuffer encoderBuffer;
     private final MutableDirectBuffer commandDecoderBuffer;
 
-    private final Publishers publishers;
+    private final Publisher publisher;
 
 
     public LeaderServerState(final PersistentState persistentState,
@@ -33,7 +33,7 @@ public class LeaderServerState implements ServerState {
                              final MessageHeaderEncoder messageHeaderEncoder,
                              final MutableDirectBuffer encoderBuffer,
                              final MutableDirectBuffer commandDecoderBuffer,
-                             final Publishers publishers) {
+                             final Publisher publisher) {
         this.persistentState = Objects.requireNonNull(persistentState);
         this.volatileState = Objects.requireNonNull(volatileState);
         this.followersState = Objects.requireNonNull(followersState);
@@ -42,7 +42,7 @@ public class LeaderServerState implements ServerState {
         this.messageHeaderEncoder = Objects.requireNonNull(messageHeaderEncoder);
         this.encoderBuffer = Objects.requireNonNull(encoderBuffer);
         this.commandDecoderBuffer = Objects.requireNonNull(commandDecoderBuffer);
-        this.publishers = Objects.requireNonNull(publishers);
+        this.publisher = Objects.requireNonNull(publisher);
     }
 
 
@@ -185,6 +185,6 @@ public class LeaderServerState implements ServerState {
             }
         }
 
-        return publishers.lookup(follower.serverId()).publish(encoderBuffer, 0, messageLength);
+        return publisher.publish(encoderBuffer, 0, messageLength);
     }
 }

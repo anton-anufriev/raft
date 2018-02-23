@@ -54,7 +54,7 @@ public class Bootstrap {
         };
 
         final String ipcChannel = "aeron:ipc";
-        final IntFunction<String> serverTochannelMap = value -> ipcChannel;
+        final IntFunction<String> serverToChannel = value -> ipcChannel;
 
         final MessageHandler stateMachine0 = new LoggingStateMachine(0);
         final MessageHandler stateMachine1 = new LoggingStateMachine(1);
@@ -66,49 +66,55 @@ public class Bootstrap {
         final int minElectionTimeout = 1100;
         final int maxElectionTimeout = 1500;
 
+        final PollerFactory commandPollerFactory = PollerFactory.aeronPollerFactory(aeron, commandChannel, commandStreamId);
+        final IntFunction<PollerFactory> serverToPollerFactory = PollerFactory.aeronServerPollerFactory(aeron, serverToChannel);
+        final IntFunction<Publisher> serverPublisherFactory = serverId -> Publisher.aeronPublisher(aeron, serverToChannel.apply(serverId), serverId);
 
-        final Process process0 = process(aeron,
-                commandChannel,
-                commandStreamId,
+        final Process process0 = process(
                 0,
                 3,
+                commandPollerFactory,
+                serverToPollerFactory,
+                serverPublisherFactory,
                 minElectionTimeout,
                 maxElectionTimeout,
                 heartbeatTimeout,
                 1,
-                serverTochannelMap,
+                1,
                 stateMachine0,
                 1,
                 new BackoffIdleStrategy(100L, 100L, 10L, 100L),
                 exceptionHandler,
                 10, TimeUnit.SECONDS);
 
-        final Process process1 = process(aeron,
-                commandChannel,
-                commandStreamId,
+        final Process process1 = process(
                 1,
                 3,
+                commandPollerFactory,
+                serverToPollerFactory,
+                serverPublisherFactory,
                 minElectionTimeout,
                 maxElectionTimeout,
                 heartbeatTimeout,
                 1,
-                serverTochannelMap,
+                1,
                 stateMachine1,
                 1,
                 new BackoffIdleStrategy(100L, 100L, 10L, 100L),
                 exceptionHandler,
                 10, TimeUnit.SECONDS);
 
-        final Process process2 = process(aeron,
-                commandChannel,
-                commandStreamId,
+        final Process process2 = process(
                 2,
                 3,
+                commandPollerFactory,
+                serverToPollerFactory,
+                serverPublisherFactory,
                 minElectionTimeout,
                 maxElectionTimeout,
                 heartbeatTimeout,
                 1,
-                serverTochannelMap,
+                1,
                 stateMachine2,
                 1,
                 new BackoffIdleStrategy(100L, 100L, 10L, 100L),
@@ -143,7 +149,7 @@ public class Bootstrap {
         final UnsafeBuffer commandEncoderBuffer = new UnsafeBuffer(commandEncoderByteBuffer);
 
 
-        final Publisher commandPublisher = new AeronPublisher(aeron.addPublication(commandChannel, commandStreamId));
+        final Publisher commandPublisher = Publisher.aeronPublisher(aeron, commandChannel, commandStreamId);
         final CommandSender commandSender = new CommandSender(commandPublisher,
                 new MessageHeaderEncoder(),
                 new CommandRequestEncoder(),
@@ -176,16 +182,17 @@ public class Bootstrap {
     }
 
 
-    public static Process process(final Aeron aeron,
-                           final String commandChannel,
-                           final int commandStreamId,
+    public static Process process(
                            final int serverId,
                            final int serverCount,
+                           final PollerFactory commandPollerFactory,
+                           final IntFunction<PollerFactory> serverToPollerFactory,
+                           final IntFunction<Publisher> serverPublisherFactory,
                            final int minElectionTimeoutMillis,
                            final int maxElectionTimeoutMillis,
                            final int heartbeatTimeoutMillis,
                            final int maxMessagesPolledForSubscription,
-                           final IntFunction<String> serverTochannelMap,
+                           final int maxCommandsPolled,
                            final MessageHandler stateMachineHandler,
                            final int maxCommitBatchSize,
                            final IdleStrategy idleStrategy,
@@ -216,7 +223,7 @@ public class Bootstrap {
         final UnsafeBuffer encoderBuffer = new UnsafeBuffer(encoderByteBuffer);
 
         final Publisher publisher = new LoggingPublisher(
-                new AeronPublisher(aeron.addPublication(serverTochannelMap.apply(serverId), serverId)),
+                serverPublisherFactory.apply(serverId),
                 outLogger,
                 messageHeaderDecoder,
                 voteRequestDecoder,
@@ -225,8 +232,6 @@ public class Bootstrap {
                 appendResponseDecoder,
                 commandRequestDecoder,
                 stringBuilder);
-
-        final Publishers publishers = serverId1 -> publisher;
 
         final String headerFileName = FileUtil.sharedMemDir("logHeader" + serverId).getAbsolutePath();
         final String indexFileName = FileUtil.sharedMemDir("logIndex" + serverId).getAbsolutePath();
@@ -295,14 +300,14 @@ public class Bootstrap {
                 electionTimer, messageHeaderEncoder,
                 appendResponseEncoder,
                 encoderBuffer,
-                publishers,
+                publisher,
                 serverId);
 
         final VoteRequestHandler voteRequestHandler = new VoteRequestHandler(persistentState,
                 electionTimer, messageHeaderEncoder,
                 voteResponseEncoder,
                 encoderBuffer,
-                publishers,
+                publisher,
                 serverId);
 
         final Predicate<HeaderDecoder> destinationFilter = DestinationFilter.forServer(serverId);
@@ -329,7 +334,7 @@ public class Bootstrap {
                                 messageHeaderEncoder,
                                 voteRequestEncoder,
                                 encoderBuffer,
-                                publishers),
+                                publisher),
                         persistentState),
                     stringBuilder,
                     inLogger
@@ -346,7 +351,7 @@ public class Bootstrap {
                                 messageHeaderEncoder,
                                 encoderBuffer,
                                 commandDecoderBuffer,
-                                publishers),
+                                publisher),
                         persistentState),
                     stringBuilder,
                     inLogger
@@ -367,9 +372,11 @@ public class Bootstrap {
                 .filter(destinationId -> destinationId != serverId)
                 .forEach(destinationId -> {
                     outLogger.info("Creating subscriptions: From {}, to {}", serverId, destinationId);
-                    processSteps.add(new AeronSubscriptionPoller(aeron.addSubscription(serverTochannelMap.apply(destinationId), destinationId), serverMessageHandler, maxMessagesPolledForSubscription));
+                    final Poller destinationPoller = serverToPollerFactory.apply(destinationId).create(serverMessageHandler, maxMessagesPolledForSubscription);
+                    processSteps.add(destinationPoller::poll);
                 });
-        processSteps.add(new AeronSubscriptionPoller(aeron.addSubscription(commandChannel, commandStreamId), serverMessageHandler, 1));
+        final Poller commandPoller = commandPollerFactory.create(serverMessageHandler, maxCommandsPolled);
+        processSteps.add(commandPoller::poll);
         processSteps.add(serverMessageHandler);
         processSteps.add(new CommittedLogPromoter(persistentState, volatileState, stateMachineHandler, commandDecoderBuffer, maxCommitBatchSize));
 

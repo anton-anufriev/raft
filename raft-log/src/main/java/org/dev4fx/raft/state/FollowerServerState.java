@@ -40,7 +40,7 @@ public class FollowerServerState implements ServerState {
         if (electionTimer.hasTimeoutElapsed()) {
             LOGGER.info("Election timer elapsed");
 
-            return Transition.TO_CANDIDATE;
+            return Transition.TO_CANDIDATE_NO_REPLAY;
         }
         return Transition.STEADY;
     }

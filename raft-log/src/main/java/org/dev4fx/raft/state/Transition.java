@@ -5,9 +5,10 @@ package org.dev4fx.raft.state;
  */
 public enum Transition {
     STEADY(null, false),
-    TO_FOLLOWER(Role.FOLLOWER, true),
-    TO_CANDIDATE(Role.CANDIDATE, false),
-    TO_LEADER(Role.LEADER, false);
+    TO_FOLLOWER_REPLAY(Role.FOLLOWER, true),
+    TO_FOLLOWER_NO_REPLAY(Role.FOLLOWER, false),
+    TO_CANDIDATE_NO_REPLAY(Role.CANDIDATE, false),
+    TO_LEADER_NO_REPLAY(Role.LEADER, false);
 
     private final Role targetRole;
     private final boolean replayEvent;

@@ -4,7 +4,7 @@ import org.agrona.MutableDirectBuffer;
 import org.dev4fx.raft.log.api.PersistentState;
 import org.dev4fx.raft.sbe.*;
 import org.dev4fx.raft.timer.Timer;
-import org.dev4fx.raft.transport.Publishers;
+import org.dev4fx.raft.transport.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +22,7 @@ public class CandidateServerState implements ServerState {
     private final MessageHeaderEncoder messageHeaderEncoder;
     private final VoteRequestEncoder voteRequestEncoder;
     private final MutableDirectBuffer encoderBuffer;
-    private final Publishers publishers;
+    private final Publisher publisher;
 
     private int votesCount;
 
@@ -34,7 +34,7 @@ public class CandidateServerState implements ServerState {
                                 final MessageHeaderEncoder messageHeaderEncoder,
                                 final VoteRequestEncoder voteRequestEncoder,
                                 final MutableDirectBuffer encoderBuffer,
-                                final Publishers publishers) {
+                                final Publisher publisher) {
         this.persistentState = Objects.requireNonNull(persistentState);
         this.followersState = Objects.requireNonNull(followersState);
         this.appendRequestHandler = Objects.requireNonNull(appendRequestHandler);
@@ -43,7 +43,7 @@ public class CandidateServerState implements ServerState {
         this.messageHeaderEncoder = Objects.requireNonNull(messageHeaderEncoder);
         this.voteRequestEncoder = Objects.requireNonNull(voteRequestEncoder);
         this.encoderBuffer = Objects.requireNonNull(encoderBuffer);
-        this.publishers = Objects.requireNonNull(publishers);
+        this.publisher = Objects.requireNonNull(publisher);
     }
 
     @Override
@@ -83,7 +83,7 @@ public class CandidateServerState implements ServerState {
         final int currentTerm = persistentState.currentTerm();
 
         if (appendRequestTerm >= currentTerm) {
-            return Transition.TO_FOLLOWER;
+            return Transition.TO_FOLLOWER_REPLAY;
         } else {
             return appendRequestHandler.apply(appendRequestDecoder, LOGGER);
         }
@@ -124,7 +124,7 @@ public class CandidateServerState implements ServerState {
 
         voteRequestEncoder.wrap(encoderBuffer, headerLength)
                 .header()
-                .destinationId(Publishers.ALL)
+                .destinationId(Server.ALL)
                 .sourceId(serverId)
                 .term(currentTerm);
 
@@ -132,7 +132,7 @@ public class CandidateServerState implements ServerState {
                 .index(lastIndex)
                 .term(lastTerm);
 
-        publishers.lookup(Publishers.ALL).publish(encoderBuffer, 0, headerLength + voteRequestEncoder.encodedLength());
+        publisher.publish(encoderBuffer, 0, headerLength + voteRequestEncoder.encodedLength());
     }
 
     private Transition incVoteCount() {
@@ -140,7 +140,7 @@ public class CandidateServerState implements ServerState {
         final int majority = followersState.majority();
         if (votesCount >= majority) {
             LOGGER.info("Received votes {}, majority {}", votesCount, majority);
-            return Transition.TO_LEADER;
+            return Transition.TO_LEADER_NO_REPLAY;
         }
         return Transition.STEADY;
     }

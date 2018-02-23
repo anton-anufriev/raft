@@ -34,7 +34,7 @@ public class HighTermHandlingServerState implements ServerState {
     @Override
     public Transition onVoteRequest(final VoteRequestDecoder voteRequestDecoder) {
         if (updateHighTerm(voteRequestDecoder.header())) {
-            return Transition.TO_FOLLOWER;
+            return Transition.TO_FOLLOWER_REPLAY;
         }
         return delegateServerState.onVoteRequest(voteRequestDecoder);
     }
@@ -42,7 +42,7 @@ public class HighTermHandlingServerState implements ServerState {
     @Override
     public Transition onVoteResponse(final VoteResponseDecoder voteResponseDecoder) {
         if (updateHighTerm(voteResponseDecoder.header())) {
-            return Transition.TO_FOLLOWER;
+            return Transition.TO_FOLLOWER_NO_REPLAY;
         }
         return delegateServerState.onVoteResponse(voteResponseDecoder);
     }
@@ -50,7 +50,7 @@ public class HighTermHandlingServerState implements ServerState {
     @Override
     public Transition onAppendRequest(final AppendRequestDecoder appendRequestDecoder) {
         if (updateHighTerm(appendRequestDecoder.header())) {
-            return Transition.TO_FOLLOWER;
+            return Transition.TO_FOLLOWER_REPLAY;
         }
         return delegateServerState.onAppendRequest(appendRequestDecoder);
     }
@@ -58,7 +58,7 @@ public class HighTermHandlingServerState implements ServerState {
     @Override
     public Transition onAppendResponse(final AppendResponseDecoder appendResponseDecoder) {
         if (updateHighTerm(appendResponseDecoder.header())) {
-            return Transition.TO_FOLLOWER;
+            return Transition.TO_FOLLOWER_NO_REPLAY;
         }
         return delegateServerState.onAppendResponse(appendResponseDecoder);
     }

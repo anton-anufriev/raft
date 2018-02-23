@@ -4,12 +4,11 @@ import org.agrona.MutableDirectBuffer;
 import org.dev4fx.raft.log.api.PersistentState;
 import org.dev4fx.raft.sbe.*;
 import org.dev4fx.raft.timer.Timer;
-import org.dev4fx.raft.transport.Publishers;
+import org.dev4fx.raft.transport.Publisher;
 import org.slf4j.Logger;
 
 import java.util.Objects;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
 public class AppendRequestHandler implements BiFunction<AppendRequestDecoder, Logger, Transition> {
     private final PersistentState persistentState;
@@ -18,7 +17,7 @@ public class AppendRequestHandler implements BiFunction<AppendRequestDecoder, Lo
     private final MessageHeaderEncoder messageHeaderEncoder;
     private final AppendResponseEncoder appendResponseEncoder;
     private final MutableDirectBuffer encoderBuffer;
-    private final Publishers publishers;
+    private final Publisher publisher;
     private final int serverId;
 
     public AppendRequestHandler(final PersistentState persistentState,
@@ -27,7 +26,7 @@ public class AppendRequestHandler implements BiFunction<AppendRequestDecoder, Lo
                                 final MessageHeaderEncoder messageHeaderEncoder,
                                 final AppendResponseEncoder appendResponseEncoder,
                                 final MutableDirectBuffer encoderBuffer,
-                                final Publishers publishers,
+                                final Publisher publisher,
                                 final int serverId) {
         this.persistentState = Objects.requireNonNull(persistentState);
         this.volatileState = Objects.requireNonNull(volatileState);
@@ -35,7 +34,7 @@ public class AppendRequestHandler implements BiFunction<AppendRequestDecoder, Lo
         this.messageHeaderEncoder = Objects.requireNonNull(messageHeaderEncoder);
         this.appendResponseEncoder = Objects.requireNonNull(appendResponseEncoder);
         this.encoderBuffer = Objects.requireNonNull(encoderBuffer);
-        this.publishers = Objects.requireNonNull(publishers);
+        this.publisher = Objects.requireNonNull(publisher);
         this.serverId = serverId;
     }
 
@@ -106,7 +105,7 @@ public class AppendRequestHandler implements BiFunction<AppendRequestDecoder, Lo
                 .prevLogIndex(requestPrevIndex)
                 .successful(successful ? BooleanType.T : BooleanType.F);
 
-        publishers.lookup(leaderId).publish(encoderBuffer, 0, headerLength + appendResponseEncoder.encodedLength());
+        publisher.publish(encoderBuffer, 0, headerLength + appendResponseEncoder.encodedLength());
         return Transition.STEADY;
     }
 

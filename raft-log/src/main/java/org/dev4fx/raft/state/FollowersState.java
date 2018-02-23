@@ -10,7 +10,6 @@ import java.util.function.Supplier;
 public final class FollowersState {
 
     private final int serverId;
-    private final int serverCount;
     private final Follower[] followers;
     private final int majority;
     private final BiConsumer<? super Consumer<? super Follower>, ? super Follower> forEachBiConsumer;
@@ -19,7 +18,6 @@ public final class FollowersState {
                           final int serverCount,
                           final Supplier<Timer> timerFactory) {
         this.serverId = serverId;
-        this.serverCount = serverCount;
         this.followers = initFollowers(serverId, serverCount, timerFactory);
         this.majority = -Math.floorDiv(serverCount, -2);
         this.forEachBiConsumer = Consumer::accept;
@@ -39,10 +37,6 @@ public final class FollowersState {
 
     public void resetFollowers(final long nextIndex) {
         forEach(nextIndex, (nextIndex1, follower) -> follower.nextIndex(nextIndex1).resetMatchIndex().heartbeatTimer().reset());
-    }
-
-    public int serverCount() {
-        return serverCount;
     }
 
     private static Follower[] initFollowers(final int serverId, final int serverCount, Supplier<Timer> timerFactory) {
