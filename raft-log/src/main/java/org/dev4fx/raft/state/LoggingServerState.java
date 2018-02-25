@@ -36,7 +36,9 @@ public class LoggingServerState implements ServerState {
 
     @Override
     public Transition onVoteRequest(final VoteRequestDecoder voteRequestDecoder) {
-
+        stringBuilder.setLength(0);
+        voteRequestDecoder.appendTo(stringBuilder);
+        logger.info("onVoteRequest: {}", stringBuilder);
         return delegateServerState.onVoteRequest(voteRequestDecoder);
     }
 

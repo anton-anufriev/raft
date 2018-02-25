@@ -12,7 +12,7 @@ import java.util.function.IntFunction;
 public interface PollerFactory {
     Poller create(MessageHandler messageHandler, int messageLimit);
 
-    static IntFunction<PollerFactory> aeronServerPollerFactory(final Aeron aeron, final IntFunction<String> serverToChannel) {
+    static IntFunction<PollerFactory> aeronServerToPollerFactory(final Aeron aeron, final IntFunction<String> serverToChannel) {
         Objects.requireNonNull(aeron);
         Objects.requireNonNull(serverToChannel);
         final Int2ObjectHashMap<PollerFactory> pollerFactoryMap = new Int2ObjectHashMap<>();

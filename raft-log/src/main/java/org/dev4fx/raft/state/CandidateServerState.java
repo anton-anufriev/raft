@@ -67,9 +67,9 @@ public class CandidateServerState implements ServerState {
     }
 
     private void startNewElection() {
-        LOGGER.info("Starting new election");
+        final int term = persistentState.clearVoteAndIncCurrentTerm();
+        LOGGER.info("Starting new election, new term={}", term);
 
-        persistentState.clearVoteAndIncCurrentTerm();
         electionTimer.restart();
         voteForMyself();
         requestVoteFromAllServers();

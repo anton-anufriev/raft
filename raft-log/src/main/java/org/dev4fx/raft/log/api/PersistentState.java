@@ -2,10 +2,13 @@ package org.dev4fx.raft.log.api;
 
 import org.agrona.DirectBuffer;
 import org.dev4fx.raft.state.LogContainment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 
 public interface PersistentState extends Closeable {
+    Logger LOGGER = LoggerFactory.getLogger(PersistentState.class);
     long NULL_INDEX = -1;
     int NULL_TERM = -1;
     int NULL_VOTE = -1;
@@ -55,8 +58,11 @@ public interface PersistentState extends Closeable {
     }
 
     default int lastKeyCompareTo(final long index, final int term) {
+        final long lastIndex = lastIndex();
+        if (lastIndex == NULL_INDEX || index == NULL_INDEX) return Long.compare(lastIndex, index);
+
         final int termCompare = Integer.compare(lastTerm(), term);
-        return termCompare == 0 ? Long.compare(lastIndex(), index) : termCompare;
+        return termCompare == 0 ? Long.compare(lastIndex, index) : termCompare;
     }
 
 

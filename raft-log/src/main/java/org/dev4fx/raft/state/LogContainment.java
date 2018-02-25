@@ -10,6 +10,7 @@ public enum LogContainment {
             return OUT;
         } else {
             if (index < 0) return IN;
+            //FIXME check term at NULL_INDEX
             final int logTermAtIndex = persistentState.term(index);
             return termAtIndex == logTermAtIndex ? IN : CONFLICT;
         }

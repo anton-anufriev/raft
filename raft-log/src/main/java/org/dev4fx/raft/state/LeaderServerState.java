@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
+import java.util.function.IntConsumer;
 
 public class LeaderServerState implements ServerState {
     private static final Logger LOGGER = LoggerFactory.getLogger(Role.LEADER.name());
@@ -23,6 +24,7 @@ public class LeaderServerState implements ServerState {
     private final MutableDirectBuffer commandDecoderBuffer;
 
     private final Publisher publisher;
+    private final IntConsumer onLeaderTransitionHandler;
 
 
     public LeaderServerState(final PersistentState persistentState,
@@ -33,7 +35,8 @@ public class LeaderServerState implements ServerState {
                              final MessageHeaderEncoder messageHeaderEncoder,
                              final MutableDirectBuffer encoderBuffer,
                              final MutableDirectBuffer commandDecoderBuffer,
-                             final Publisher publisher) {
+                             final Publisher publisher,
+                             final IntConsumer onLeaderTransitionHandler) {
         this.persistentState = Objects.requireNonNull(persistentState);
         this.volatileState = Objects.requireNonNull(volatileState);
         this.followersState = Objects.requireNonNull(followersState);
@@ -43,6 +46,7 @@ public class LeaderServerState implements ServerState {
         this.encoderBuffer = Objects.requireNonNull(encoderBuffer);
         this.commandDecoderBuffer = Objects.requireNonNull(commandDecoderBuffer);
         this.publisher = Objects.requireNonNull(publisher);
+        this.onLeaderTransitionHandler = Objects.requireNonNull(onLeaderTransitionHandler);
     }
 
 
@@ -56,6 +60,7 @@ public class LeaderServerState implements ServerState {
         LOGGER.info("Transitioned");
         followersState.resetFollowers(persistentState.size());
         sendAppendRequestToAllAndResetHeartbeatTimer();
+        onLeaderTransitionHandler.accept(serverId);
     }
 
     @Override
@@ -113,6 +118,7 @@ public class LeaderServerState implements ServerState {
         long currentCommitIndex = volatileState.commitIndex();
         int currentTerm = persistentState.currentTerm();
 
+        //FIXME check term at NULL_INDEX
         long nextCommitIndex = followersState.majorityCommitIndex(currentCommitIndex, currentTerm, persistentState::term);
 
         if (nextCommitIndex > currentCommitIndex) {
@@ -133,6 +139,7 @@ public class LeaderServerState implements ServerState {
         final int currentTerm = persistentState.currentTerm();
 
         final long prevLogIndex = follower.previousIndex();
+        //FIXME if prevLogIndex < 0, what term should be
         final int termAtPrevLogIndex = persistentState.term(prevLogIndex);
 
         final int headerLength = messageHeaderEncoder.wrap(encoderBuffer, 0)
@@ -165,6 +172,7 @@ public class LeaderServerState implements ServerState {
 
             if (matchIndex == nextLogIndex - 1 && nextLogIndex <= lastIndex) {
 
+                //FIXME if nextLogIndex < 0, what term should be
                 final int termAtNextLogIndex = persistentState.term(nextLogIndex);
                 persistentState.wrap(nextLogIndex, commandDecoderBuffer);
                 final int commandLength = commandDecoderBuffer.capacity();

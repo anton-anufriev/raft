@@ -3,17 +3,21 @@ package org.dev4fx.raft.state;
 import org.agrona.DirectBuffer;
 import org.dev4fx.raft.log.api.PersistentState;
 import org.dev4fx.raft.sbe.*;
+import org.slf4j.Logger;
 
 import java.util.Objects;
 
 public class HighTermHandlingServerState implements ServerState {
     private final ServerState delegateServerState;
     private final PersistentState persistentState;
+    private final Logger logger;
 
     public HighTermHandlingServerState(final ServerState delegateServerState,
-                                       final PersistentState persistentState) {
+                                       final PersistentState persistentState,
+                                       final Logger logger) {
         this.delegateServerState = Objects.requireNonNull(delegateServerState);
         this.persistentState = Objects.requireNonNull(persistentState);
+        this.logger = Objects.requireNonNull(logger);
     }
 
     @Override
@@ -75,7 +79,9 @@ public class HighTermHandlingServerState implements ServerState {
 
     private boolean updateHighTerm(final HeaderDecoder headerDecoder) {
         final int messageTerm = headerDecoder.term();
-        if (messageTerm > persistentState.currentTerm()) {
+        final int currentTerm = persistentState.currentTerm();
+        if (messageTerm > currentTerm) {
+            logger.info("Updating to higher term {} from current {}", messageTerm, currentTerm);
             persistentState.clearVoteAndSetCurrentTerm(messageTerm);
             return true;
         }

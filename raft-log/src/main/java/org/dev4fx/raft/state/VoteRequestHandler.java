@@ -48,15 +48,20 @@ public class VoteRequestHandler implements BiFunction<VoteRequestDecoder, Logger
         final Transition transition;
         final boolean granted;
         if (persistentState.currentTerm() <= requestTerm && persistentState.lastKeyCompareTo(requestLastLogIndex, requestLastLogTerm) <= 0) {
+            logger.info("Current term <= requestTerm and persisted log lesser than log from source");
             if (persistentState.vote() == PersistentState.NULL_VOTE) {
+                logger.info("Have not voted yet");
                 persistentState.vote(candidateId);
                 transition = Transition.TO_FOLLOWER_NO_REPLAY;
                 granted = true;
             } else {
-                granted = persistentState.vote() == candidateId;
+                final int vote = persistentState.vote();
+                logger.info("Already vote, reject vote if not the same, {} = {}", vote, candidateId);
+                granted = vote == candidateId;
                 transition = Transition.STEADY;
             }
         } else {
+            logger.info("Rejecting vote as current term > requestTerm or persisted log bigger than log from source");
             granted = false;
             transition = Transition.STEADY;
         }

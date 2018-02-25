@@ -103,9 +103,9 @@ public final class ServerMessageHandler implements MessageHandler, ProcessStep {
             if (serverState.role() != transition.targetRole()) {
                 serverState = roleToState.apply(transition.targetRole());
                 serverState.onTransition();
-                if (transition.replayEvent()) {
-                    this.onMessage(source, offset, length);
-                }
+            }
+            if (transition.replayEvent()) {
+                this.onMessage(source, offset, length);
             }
         }
     }

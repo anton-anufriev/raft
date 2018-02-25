@@ -75,8 +75,7 @@ public class DefaultPersistentState implements PersistentState {
 
     @Override
     public long size() {
-        final long size = headerBuffer.getLong(SIZE_OFFSET);
-        return size < 0 ? 0 : size;
+        return headerBuffer.getLong(SIZE_OFFSET);
     }
 
     private void size(final long size) {
@@ -147,7 +146,6 @@ public class DefaultPersistentState implements PersistentState {
     @Override
     public void wrap(final long index, final DirectBuffer buffer) {
         final long lastIndex = lastIndex();
-//        final long size = size();
         if (index > NULL_INDEX && index <= lastIndex) {
             wrapIndex(index);
             final long payloadPosition = indexPayloadPosition();
