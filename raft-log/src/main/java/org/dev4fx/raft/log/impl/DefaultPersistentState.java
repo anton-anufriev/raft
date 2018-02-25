@@ -135,11 +135,15 @@ public class DefaultPersistentState implements PersistentState {
 
     @Override
     public int term(final long index) {
-        if (index > NULL_INDEX && index <= lastIndex()) {
+        if (index > NULL_INDEX) {
+            final long lastIndex = lastIndex();
+            if (index > lastIndex) {
+                throw new IllegalArgumentException("Index " + index + " of out last index boundary " + lastIndex);
+            }
             wrapIndex(index);
             return indexTerm();
         } else {
-            return currentTerm();
+            return NULL_TERM;
         }
     }
 

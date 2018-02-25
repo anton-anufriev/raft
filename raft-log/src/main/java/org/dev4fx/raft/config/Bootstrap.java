@@ -73,9 +73,9 @@ public class Bootstrap {
                 .stateMachineFactory(LoggingStateMachine::new)
                 .onLeaderTransitionHandler(onLeaderTransitionHandler);
 
-        final Service.Start process0 = builder.build(raftDirectory, 0, 5);
-        final Service.Start process1 = builder.build(raftDirectory, 1, 5);
-        final Service.Start process2 = builder.build(raftDirectory, 2, 5);
+        final Service.Start process0 = builder.build(raftDirectory, 0, 3);
+        final Service.Start process1 = builder.build(raftDirectory, 1, 3);
+        final Service.Start process2 = builder.build(raftDirectory, 2, 3);
 //        final Service.Start process3 = builder.build(raftDirectory, 3, 5);
 //        final Service.Start process4 = builder.build(raftDirectory, 4, 5);
 

@@ -139,7 +139,6 @@ public class LeaderServerState implements ServerState {
         final int currentTerm = persistentState.currentTerm();
 
         final long prevLogIndex = follower.previousIndex();
-        //FIXME if prevLogIndex < 0, what term should be
         final int termAtPrevLogIndex = persistentState.term(prevLogIndex);
 
         final int headerLength = messageHeaderEncoder.wrap(encoderBuffer, 0)
@@ -170,9 +169,8 @@ public class LeaderServerState implements ServerState {
             final long nextLogIndex = follower.nextIndex();
             final long lastIndex = persistentState.lastIndex();
 
-            if (matchIndex == nextLogIndex - 1 && nextLogIndex <= lastIndex) {
+            if (matchIndex == prevLogIndex && nextLogIndex <= lastIndex) {
 
-                //FIXME if nextLogIndex < 0, what term should be
                 final int termAtNextLogIndex = persistentState.term(nextLogIndex);
                 persistentState.wrap(nextLogIndex, commandDecoderBuffer);
                 final int commandLength = commandDecoderBuffer.capacity();
