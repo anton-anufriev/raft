@@ -60,7 +60,7 @@
         <field name="commitLogIndex" id="5" type="LogIndex"/>
         <group name="logEntries" id="6" dimensionType="groupSizeEncoding">
             <field name="term" id="7" type="Term"/>
-            <field name="command" id="8" type="varDataEncoding"/>
+            <data name="command" id="8" type="varDataEncoding"/>
         </group>
     </sbe:message>
     <sbe:message id="4" name="AppendResponse" description="Append Response">
@@ -72,6 +72,6 @@
     <sbe:message id="5" name="CommandRequest" description="Command Request">
         <field name="sourceId" id="12" type="SourceId"/>
         <field name="sequence" id="13" type="Sequence"/>
-        <field name="payload" id="14" type="varDataEncoding"/>
+        <data name="payload" id="14" type="varDataEncoding"/>
     </sbe:message>
 </sbe:messageSchema>

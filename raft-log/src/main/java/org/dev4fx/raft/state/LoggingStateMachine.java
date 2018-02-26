@@ -35,8 +35,7 @@ public class LoggingStateMachine implements MessageHandler {
                         .append(commandRequestDecoder.sequence())
                         .append(", payload=");
 
-                final VarDataEncodingDecoder payloadDecoder = commandRequestDecoder.payload();
-                stringBuilder.append(payloadDecoder.buffer().getStringAscii(payloadDecoder.offset()));
+                stringBuilder.append(commandRequestDecoder.buffer().getStringAscii(commandRequestDecoder.limit()));
                 LOGGER.info("{}", stringBuilder);
 
                 break;

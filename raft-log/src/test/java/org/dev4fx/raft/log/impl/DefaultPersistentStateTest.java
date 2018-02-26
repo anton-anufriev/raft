@@ -8,7 +8,10 @@ import org.dev4fx.raft.mmap.impl.*;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 
 public class DefaultPersistentStateTest {
     private static final long MAX_FILE_SIZE = 64 * 16 * 1024 * 1024;
@@ -31,13 +34,13 @@ public class DefaultPersistentStateTest {
 
 
         final MappedFile headerFile = new MappedFile(headerFileName, MappedFile.Mode.READ_WRITE,
-                headerRegionSize, FileInitialiser::initFile);
+                headerRegionSize, DefaultPersistentStateTest::initFile);
 
         final MappedFile indexFile = new MappedFile(indexFileName, MappedFile.Mode.READ_WRITE,
-                headerRegionSize, FileInitialiser::initFile);
+                headerRegionSize, DefaultPersistentStateTest::initFile);
 
         final MappedFile payloadFile = new MappedFile(payloadFileName, MappedFile.Mode.READ_WRITE,
-                payloadRegionSize, FileInitialiser::initFile);
+                payloadRegionSize, DefaultPersistentStateTest::initFile);
 
 
         final RegionRingAccessor headerRegionRingAccessor = new RegionRingAccessor(
@@ -121,4 +124,29 @@ public class DefaultPersistentStateTest {
         log.close();
 
     }
+
+    public static void initFile(final FileChannel fileChannel, final MappedFile.Mode mode) throws IOException {
+        switch (mode) {
+            case READ_ONLY:
+                if (fileChannel.size() < 8) {
+                    throw new IllegalArgumentException("Invalid io format");
+                }
+                break;
+            case READ_WRITE:
+                if (fileChannel.size() >= 8) break;
+            case READ_WRITE_CLEAR:
+                final FileLock lock = fileChannel.lock();
+                try {
+                    fileChannel.truncate(0);
+                    fileChannel.transferFrom(InitialBytes.ZERO, 0, 8);
+                    fileChannel.force(true);
+                } finally {
+                    lock.release();
+                }
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid mode: " + mode);
+        }
+    }
+
 }

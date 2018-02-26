@@ -12,7 +12,7 @@ repositories {
 dependencies {
     compile project(':raft-mmap')
 
-    compile group: 'org.agrona', name: 'agrona', version: '0.9.10'
+    compile group: 'org.agrona', name: 'agrona', version: '0.9.13'
     testCompile 'org.hdrhistogram:HdrHistogram:2.1.9'
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
     //testCompile 'org.slf4j:slf4j-simple:1.7.25'

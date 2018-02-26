@@ -163,17 +163,14 @@ public class LeaderServerState implements ServerState {
                     .index(prevLogIndex)
                     .term(termAtPrevLogIndex);
 
-        int messageLength = 0;
         if (empty) {
             appendRequestEncoder.logEntriesCount(0);
-            messageLength = headerLength + appendRequestEncoder.encodedLength();
         } else {
             final long matchIndex = follower.matchIndex();
             long nextLogIndex = follower.nextIndex();
             final long lastIndex = persistentState.lastIndex();
 
-
-            if (matchIndex == prevLogIndex && nextLogIndex <= lastIndex) {
+            if (matchIndex == prevLogIndex) {
 
                 final long endOfBatchIndex = Long.min(prevLogIndex + maxBatchSize, lastIndex);
 
@@ -186,22 +183,17 @@ public class LeaderServerState implements ServerState {
                     persistentState.wrap(nextLogIndex, commandDecoderBuffer);
                     final int commandLength = commandDecoderBuffer.capacity();
 
-                    final VarDataEncodingEncoder commandEncoder = logEntriesEncoder.next()
+                    logEntriesEncoder.next()
                             .term(termAtNextLogIndex)
-                            .command().length(commandLength);
+                            .putCommand(commandDecoderBuffer, 0, commandLength);
 
-                    final int commandOffset = commandEncoder.offset() + commandEncoder.encodedLength();
-
-                    commandDecoderBuffer.getBytes(0, encoderBuffer, commandOffset, commandLength);
-                    messageLength = commandOffset + commandLength;
                     nextLogIndex++;
                 }
             } else {
                 appendRequestEncoder.logEntriesCount(0);
-                messageLength = headerLength + appendRequestEncoder.encodedLength();
             }
         }
 
-        return messageLength > 0 && publisher.publish(encoderBuffer, 0, messageLength);
+        return publisher.publish(encoderBuffer, 0, headerLength + appendRequestEncoder.encodedLength());
     }
 }

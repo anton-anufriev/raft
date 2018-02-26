@@ -32,16 +32,11 @@ public class CommandSender {
                 .templateId(CommandRequestEncoder.TEMPLATE_ID)
                 .encodedLength();
 
-        final VarDataEncodingEncoder payloadEncoder = commandRequestEncoder.wrap(encoderBuffer, headerLength)
+        int messageLength = commandRequestEncoder.wrap(encoderBuffer, headerLength)
                 .sourceId(sourceId)
                 .sequence(sequence)
-                .payload()
-                    .length(length);
-
-        final int payloadOffset = payloadEncoder.offset() + payloadEncoder.encodedLength();
-
-        buffer.getBytes(offset, encoderBuffer, payloadOffset, length);
-        final int messageLength = payloadOffset + length;
+                .putPayload(buffer, offset, length)
+                .encodedLength();
 
         return publisher.publish(encoderBuffer, 0, headerLength + messageLength);
     }
