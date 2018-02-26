@@ -63,7 +63,7 @@ public class AppendRequestHandler implements BiFunction<AppendRequestDecoder, Lo
                 case IN:
                     final AppendRequestDecoder.LogEntriesDecoder logEntries = appendRequestDecoder.logEntries();
 
-                    matchLogIndex = appendToLog(requestPrevIndex, logEntries);
+                    matchLogIndex = appendToLog(requestPrevIndex, logEntries, logger);
 
                     //From paper:  If leaderCommit > commitIndex, set commitIndex =
                     // min(leaderCommit, index of last new entry).
@@ -109,23 +109,29 @@ public class AppendRequestHandler implements BiFunction<AppendRequestDecoder, Lo
         return Transition.STEADY;
     }
 
-    private long appendToLog(final long prevLogIndex, final AppendRequestDecoder.LogEntriesDecoder logEntries) {
+    private long appendToLog(final long prevLogIndex, final AppendRequestDecoder.LogEntriesDecoder logEntries, final Logger logger) {
         long nextIndex = prevLogIndex;
 
+        //FIXME It seems like only last entry in the batch gets persisted
         for (final AppendRequestDecoder.LogEntriesDecoder logEntryDecoder : logEntries) {
             nextIndex++;
             final int nextTermAtIndex = logEntryDecoder.term();
             final VarDataEncodingDecoder commandDecoder = logEntryDecoder.command();
 
+
             final LogContainment containment = persistentState.contains(nextIndex, nextTermAtIndex);
             switch (containment) {
                 case OUT:
+                    final int offset = commandDecoder.offset() + VarDataEncodingDecoder.varDataEncodingOffset();
+                    final int length = (int) commandDecoder.length();
                     persistentState.append(nextTermAtIndex,
                             commandDecoder.buffer(),
-                            commandDecoder.offset() + VarDataEncodingDecoder.varDataEncodingOffset(),
-                            (int) commandDecoder.length());
+                            offset,
+                            length);
+                    logger.info("Appended index {}, term {}, offset {}, length {}", nextIndex, nextTermAtIndex, offset, length);
                     break;
                 case IN:
+                    logger.info("Skipped index {}, term {}", nextIndex, nextTermAtIndex);
                     break;
                 default:
                     throw new RuntimeException("Should not be in conflict");

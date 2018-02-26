@@ -59,6 +59,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     private int maxMessagesPollable = 1;
     private int maxCommandsPollable = 1;
     private int maxPromotionBatchSize = 1;
+    private int maxAppendBatchSize = 1;
     private RegionRingFactory regionRingFactory;
     private int regionRingSize = 4;
     private int indexRegionsToMapAhead = 1;
@@ -151,6 +152,12 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     @Override
     public RaftServerBuilder maxPromotionBatchSize(final int maxPromotionBatchSize) {
         this.maxPromotionBatchSize = maxPromotionBatchSize;
+        return this;
+    }
+
+    @Override
+    public RaftServerBuilder maxAppendBatchSize(final int maxAppendBatchSize) {
+        this.maxAppendBatchSize = maxAppendBatchSize;
         return this;
     }
 
@@ -383,7 +390,8 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                                         encoderBuffer,
                                         commandDecoderBuffer,
                                         publisher,
-                                        onLeaderTransitionHandler),
+                                        onLeaderTransitionHandler,
+                                        maxAppendBatchSize),
                                 persistentState, inLogger),
                         stringBuilder,
                         inLogger

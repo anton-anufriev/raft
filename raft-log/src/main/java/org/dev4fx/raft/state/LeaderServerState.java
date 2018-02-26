@@ -25,6 +25,7 @@ public class LeaderServerState implements ServerState {
 
     private final Publisher publisher;
     private final IntConsumer onLeaderTransitionHandler;
+    private final int maxBatchSize;
 
 
     public LeaderServerState(final PersistentState persistentState,
@@ -36,7 +37,8 @@ public class LeaderServerState implements ServerState {
                              final MutableDirectBuffer encoderBuffer,
                              final MutableDirectBuffer commandDecoderBuffer,
                              final Publisher publisher,
-                             final IntConsumer onLeaderTransitionHandler) {
+                             final IntConsumer onLeaderTransitionHandler,
+                             final int maxBatchSize) {
         this.persistentState = Objects.requireNonNull(persistentState);
         this.volatileState = Objects.requireNonNull(volatileState);
         this.followersState = Objects.requireNonNull(followersState);
@@ -47,6 +49,7 @@ public class LeaderServerState implements ServerState {
         this.commandDecoderBuffer = Objects.requireNonNull(commandDecoderBuffer);
         this.publisher = Objects.requireNonNull(publisher);
         this.onLeaderTransitionHandler = Objects.requireNonNull(onLeaderTransitionHandler);
+        this.maxBatchSize = maxBatchSize;
     }
 
 
@@ -160,37 +163,45 @@ public class LeaderServerState implements ServerState {
                     .index(prevLogIndex)
                     .term(termAtPrevLogIndex);
 
-        final int messageLength;
+        int messageLength = 0;
         if (empty) {
             appendRequestEncoder.logEntriesCount(0);
             messageLength = headerLength + appendRequestEncoder.encodedLength();
         } else {
             final long matchIndex = follower.matchIndex();
-            final long nextLogIndex = follower.nextIndex();
+            long nextLogIndex = follower.nextIndex();
             final long lastIndex = persistentState.lastIndex();
+
 
             if (matchIndex == prevLogIndex && nextLogIndex <= lastIndex) {
 
-                final int termAtNextLogIndex = persistentState.term(nextLogIndex);
-                persistentState.wrap(nextLogIndex, commandDecoderBuffer);
-                final int commandLength = commandDecoderBuffer.capacity();
+                final long endOfBatchIndex = Long.min(prevLogIndex + maxBatchSize, lastIndex);
 
-                final VarDataEncodingEncoder commandEncoder = appendRequestEncoder
-                        .logEntriesCount(1)
-                        .next()
-                        .term(termAtNextLogIndex)
-                        .command().length(commandLength);
+                final AppendRequestEncoder.LogEntriesEncoder logEntriesEncoder = appendRequestEncoder
+                        .logEntriesCount((int) (endOfBatchIndex - prevLogIndex));
 
-                final int commandOffset = commandEncoder.offset() + commandEncoder.encodedLength();
+                while(nextLogIndex <= endOfBatchIndex) {
 
-                commandDecoderBuffer.getBytes(0, encoderBuffer, commandOffset, commandLength);
-                messageLength = commandOffset + commandLength;
+                    final int termAtNextLogIndex = persistentState.term(nextLogIndex);
+                    persistentState.wrap(nextLogIndex, commandDecoderBuffer);
+                    final int commandLength = commandDecoderBuffer.capacity();
+
+                    final VarDataEncodingEncoder commandEncoder = logEntriesEncoder.next()
+                            .term(termAtNextLogIndex)
+                            .command().length(commandLength);
+
+                    final int commandOffset = commandEncoder.offset() + commandEncoder.encodedLength();
+
+                    commandDecoderBuffer.getBytes(0, encoderBuffer, commandOffset, commandLength);
+                    messageLength = commandOffset + commandLength;
+                    nextLogIndex++;
+                }
             } else {
                 appendRequestEncoder.logEntriesCount(0);
                 messageLength = headerLength + appendRequestEncoder.encodedLength();
             }
         }
 
-        return publisher.publish(encoderBuffer, 0, messageLength);
+        return messageLength > 0 && publisher.publish(encoderBuffer, 0, messageLength);
     }
 }

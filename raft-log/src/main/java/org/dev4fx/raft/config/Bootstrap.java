@@ -71,6 +71,7 @@ public class Bootstrap {
         final RaftServerBuilder builder = RaftServerBuilder
                 .forAeronTransport(aeron, commandChannel, commandStreamId, serverToChannel)
                 .stateMachineFactory(LoggingStateMachine::new)
+                .maxAppendBatchSize(4)
                 .onLeaderTransitionHandler(onLeaderTransitionHandler);
 
         final Service.Start process0 = builder.build(raftDirectory, 0, 3);

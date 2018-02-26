@@ -25,6 +25,7 @@ public interface RaftServerBuilder {
     RaftServerBuilder maxMessagesPollable(final int maxMessagesPollable);
     RaftServerBuilder maxCommandsPollable(final int maxCommandsPollable);
     RaftServerBuilder maxPromotionBatchSize(final int maxPromotionBatchSize);
+    RaftServerBuilder maxAppendBatchSize(final int maxAppendBatchSize);
     RaftServerBuilder regionRingFactory(final RegionRingFactory regionRingFactory);
     RaftServerBuilder regionRingSize(final int regionRingSize);
     RaftServerBuilder indexRegionsToMapAhead(final int indexRegionsToMapAhead);
