@@ -2,12 +2,22 @@ group 'org.dev4fx.raft'
 version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
+apply plugin: "com.github.hierynomus.license"
 
 sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
 }
+
+license {
+    header rootProject.file('src/main/resources/LICENSE.template')
+    strictCheck true
+    include "**/*.java"
+    ignoreFailures true
+    ext.year = Calendar.getInstance().get(Calendar.YEAR)
+}
+
 
 dependencies {
     compile group: 'org.agrona', name: 'agrona', version: '0.9.13'

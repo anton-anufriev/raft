@@ -2,12 +2,44 @@ group 'org.dev4fx.raft'
 version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
+apply plugin: "com.github.hierynomus.license"
+
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath "gradle.plugin.nl.javadude.gradle.plugins:license-gradle-plugin:0.14.0"
+    }
+}
+
 
 sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
 }
+
+task copyLicense(type: Copy) {
+    from('.')
+    into('build/resources/main/')
+    include('LICENSE.md')
+    rename('LICENSE.md', 'LICENSE.txt')
+}
+
+license {
+    header rootProject.file('src/main/resources/LICENSE.template')
+    strictCheck true
+    include "**/*.java"
+    ignoreFailures true
+    ext.year = Calendar.getInstance().get(Calendar.YEAR)
+}
+
+copyLicense.dependsOn processResources
+compileJava.dependsOn licenseFormat,copyLicense
+
 
 dependencies {
     compile 'io.aeron:aeron-all:1.8.0'

@@ -3,6 +3,8 @@ version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
 apply plugin: 'idea'
+apply plugin: "com.github.hierynomus.license"
+
 
 def generatedSrcName = "generated-src"
 def generatedSrc = "$buildDir/$generatedSrcName"
@@ -28,6 +30,15 @@ sourceSets {
     main.java.srcDirs += file(generatedSrc)
     generated.java.srcDir generatedSrc
 }
+
+license {
+    header rootProject.file('src/main/resources/LICENSE.template')
+    strictCheck true
+    include "**/*.java"
+    ignoreFailures true
+    ext.year = Calendar.getInstance().get(Calendar.YEAR)
+}
+
 
 task(generateCodecs, type: JavaExec) {
     main = 'uk.co.real_logic.sbe.SbeTool'
