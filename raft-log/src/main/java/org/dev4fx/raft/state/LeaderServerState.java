@@ -99,7 +99,7 @@ public class LeaderServerState implements ServerState {
             if (!follower.comparePreviousAndUpdateMatchAndNextIndex(requestPrevLogIndex, matchLogIndex)) {
                 LOGGER.info("Successful appendResponse prevLogIndex {} does not match {}", requestPrevLogIndex, follower.previousIndex());
             }
-            if (follower.matchIndex() < follower.previousIndex()) {
+            if (follower.matchIndex() < persistentState.lastIndex()) {
                 sendAppendRequest(follower, false);
             }
         }
