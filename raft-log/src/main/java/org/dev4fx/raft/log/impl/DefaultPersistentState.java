@@ -38,8 +38,8 @@ public class DefaultPersistentState implements PersistentState {
     private static final int SIZE_SIZE = 8;
     private static final int CURRENT_TERM_OFFSET = SIZE_OFFSET + SIZE_SIZE;
     private static final int CURRENT_TERM_SIZE = TERM_SIZE;
-    private static final int VOTE_OFFSET = CURRENT_TERM_OFFSET + CURRENT_TERM_SIZE;
-    private static final int VOTE_SIZE = 4;
+    private static final int VOTED_FOR_OFFSET = CURRENT_TERM_OFFSET + CURRENT_TERM_SIZE;
+    private static final int VOTED_FOR_SIZE = 4;
 
     private static final int PAYLOAD_POSITION_OFFSET = TERM_OFFSET + TERM_SIZE;
     private static final int PAYLOAD_POSITION_SIZE = 8;
@@ -116,13 +116,13 @@ public class DefaultPersistentState implements PersistentState {
     }
 
     @Override
-    public int vote() {
-        return headerBuffer.getInt(VOTE_OFFSET);
+    public int votedFor() {
+        return headerBuffer.getInt(VOTED_FOR_OFFSET);
     }
 
     @Override
-    public void vote(final int serverId) {
-        headerBuffer.putInt(VOTE_OFFSET, serverId);
+    public void votedFor(final int serverId) {
+        headerBuffer.putInt(VOTED_FOR_OFFSET, serverId);
     }
 
 

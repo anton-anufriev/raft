@@ -90,7 +90,7 @@ public class CandidateServerState implements ServerState {
     }
 
     private void startNewElection() {
-        final int term = persistentState.clearVoteAndIncCurrentTerm();
+        final int term = persistentState.clearVoteForAndIncCurrentTerm();
         LOGGER.info("Starting new election, new term={}", term);
 
         electionTimer.restart();
@@ -120,6 +120,9 @@ public class CandidateServerState implements ServerState {
         final int sourceId = header.sourceId();
         final BooleanType voteGranted = voteResponseDecoder.voteGranted();
 
+        //FIXME need to make sure that same peer has not sent the same grant multiple times
+        // could use FollowersState to mark voted server
+
         if (term == currentTerm && voteGranted == BooleanType.T) {
             LOGGER.info("Vote granted by server {}", sourceId);
             return incVoteCount();
@@ -129,7 +132,7 @@ public class CandidateServerState implements ServerState {
     }
 
     private void voteForMyself() {
-        persistentState.vote(serverId);
+        persistentState.votedFor(serverId);
         votesCount = 1;
     }
 

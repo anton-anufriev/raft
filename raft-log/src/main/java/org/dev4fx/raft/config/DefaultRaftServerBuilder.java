@@ -41,6 +41,7 @@ import org.dev4fx.raft.process.Service;
 import org.dev4fx.raft.sbe.*;
 import org.dev4fx.raft.state.*;
 import org.dev4fx.raft.timer.Clock;
+import org.dev4fx.raft.timer.DefaultTimer;
 import org.dev4fx.raft.timer.Timer;
 import org.dev4fx.raft.transport.LoggingPublisher;
 import org.dev4fx.raft.transport.Poller;
@@ -345,13 +346,13 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                 payloadRegionsToMapAhead,
                 payloadMappedFile::close);
 
-        final Supplier<Timer> heartbeatTimerFactory = () -> new Timer(clock, heartbeatTimeoutMillis, heartbeatTimeoutMillis);
+        final Supplier<Timer> heartbeatTimerFactory = () -> new DefaultTimer(clock, heartbeatTimeoutMillis, heartbeatTimeoutMillis);
 
         final PersistentState persistentState = new DefaultPersistentState(indexRegionRingAccessor, payloadRegionRingAccessor, headerRegionRingAccessor);
         final VolatileState volatileState = new VolatileState();
-        final FollowersState followersState = new FollowersState(serverId, clusterSize, heartbeatTimerFactory);
+        final FollowersState followersState = new DefaultFollowersState(serverId, clusterSize, heartbeatTimerFactory);
 
-        final Timer electionTimer = new Timer(clock, minElectionTimeoutMillis, maxElectionTimeoutMillis);
+        final Timer electionTimer = new DefaultTimer(clock, minElectionTimeoutMillis, maxElectionTimeoutMillis);
 
         final AppendRequestHandler appendRequestHandler = new AppendRequestHandler(persistentState,
                 volatileState,

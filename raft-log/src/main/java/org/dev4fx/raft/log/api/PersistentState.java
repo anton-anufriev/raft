@@ -31,10 +31,9 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 
 public interface PersistentState extends Closeable {
-    Logger LOGGER = LoggerFactory.getLogger(PersistentState.class);
     long NULL_INDEX = -1;
     int NULL_TERM = 0;
-    int NULL_VOTE = -1;
+    int NOT_VOTED_YET = -1;
 
 
     void append(int term, DirectBuffer buffer, int offset, int length);
@@ -55,22 +54,26 @@ public interface PersistentState extends Closeable {
 
     void truncate(long index);
 
-    int vote();
+    int votedFor();
 
-    void vote(int serverId);
+    void votedFor(int serverId);
+
+    default boolean hasNotVotedYet() {
+        return votedFor() == NOT_VOTED_YET;
+    }
 
     int currentTerm();
 
     void currentTerm(int term);
 
-    default int clearVoteAndSetCurrentTerm(final int term) {
-        vote(NULL_VOTE);
+    default int clearVoteForAndSetCurrentTerm(final int term) {
+        votedFor(NOT_VOTED_YET);
         currentTerm(term);
         return term;
     }
 
-    default int clearVoteAndIncCurrentTerm() {
-        vote(NULL_VOTE);
+    default int clearVoteForAndIncCurrentTerm() {
+        votedFor(NOT_VOTED_YET);
         final int incTerm = currentTerm() + 1;
         currentTerm(incTerm);
         return incTerm;
