@@ -27,47 +27,60 @@ import org.dev4fx.raft.timer.Timer;
 
 import java.util.Objects;
 
-public final class Follower {
+public final class DefaultPeer implements Peer {
 
     private final int serverId;
     private final Timer heartbeatTimer;
 
     private long nextIndex;
     private long matchIndex;
+    private boolean grantedVote;
 
-    public Follower(final int serverId,
-                    final Timer heartbeatTimer) {
+    public DefaultPeer(final int serverId,
+                       final Timer heartbeatTimer) {
         this.serverId = serverId;
         this.heartbeatTimer = Objects.requireNonNull(heartbeatTimer);
-        nextIndex = -1;
-        matchIndex = -1;
+        reset();
     }
 
+    @Override
     public int serverId() {
         return serverId;
     }
 
+    @Override
     public Timer heartbeatTimer() {
         return heartbeatTimer;
     }
 
+    @Override
     public long nextIndex() {
         return nextIndex;
     }
 
-    public long previousIndex() {
-        return nextIndex() - 1;
-    }
-
+    @Override
     public long matchIndex() {
         return matchIndex;
     }
 
-    public Follower nextIndex(final long index) {
+    @Override
+    public Peer nextIndex(final long index) {
         this.nextIndex = index;
         return this;
     }
 
+    @Override
+    public boolean grantedVote() {
+        return grantedVote;
+    }
+
+    @Override
+    public Peer setGrantedVote(final boolean grantedVote) {
+        this.grantedVote = grantedVote;
+        return this;
+    }
+
+    @Override
     public boolean comparePreviousAndDecrementNextIndex(final long previousIndex) {
         if (previousIndex() == previousIndex) {
             this.nextIndex--;
@@ -76,6 +89,7 @@ public final class Follower {
         return false;
     }
 
+    @Override
     public boolean comparePreviousAndUpdateMatchAndNextIndex(final long previousIndex, final long matchIndex) {
         if (previousIndex() == previousIndex) {
             this.matchIndex = matchIndex;
@@ -85,8 +99,11 @@ public final class Follower {
         return false;
     }
 
-    public Follower resetMatchIndex() {
+    @Override
+    public Peer reset() {
+        this.grantedVote = false;
         this.matchIndex = -1;
+        this.nextIndex = -1;
         return this;
     }
 }

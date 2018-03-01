@@ -350,7 +350,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
 
         final PersistentState persistentState = new DefaultPersistentState(indexRegionRingAccessor, payloadRegionRingAccessor, headerRegionRingAccessor);
         final VolatileState volatileState = new VolatileState();
-        final FollowersState followersState = new DefaultFollowersState(serverId, clusterSize, heartbeatTimerFactory);
+        final Peers peers = new DefaultPeers(serverId, clusterSize, heartbeatTimerFactory);
 
         final Timer electionTimer = new DefaultTimer(clock, minElectionTimeoutMillis, maxElectionTimeoutMillis);
 
@@ -389,7 +389,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                 new LoggingServerState(
                         new HighTermHandlingServerState(
                                 new CandidateServerState(persistentState,
-                                        followersState,
+                                        peers,
                                         appendRequestHandler,
                                         electionTimer,
                                         serverId,
@@ -407,7 +407,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                         new HighTermHandlingServerState(
                                 new LeaderServerState(persistentState,
                                         volatileState,
-                                        followersState,
+                                        peers,
                                         serverId,
                                         appendRequestEncoder,
                                         messageHeaderEncoder,

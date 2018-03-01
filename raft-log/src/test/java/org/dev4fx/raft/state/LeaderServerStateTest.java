@@ -23,24 +23,29 @@
  */
 package org.dev4fx.raft.state;
 
-import org.dev4fx.raft.sbe.HeaderDecoder;
+import org.junit.Test;
 
-import java.util.function.Predicate;
+import static org.junit.Assert.*;
 
-public class DestinationFilter implements Predicate<HeaderDecoder> {
-    private final int serverId;
-
-    private DestinationFilter(final int serverId) {
-        this.serverId = serverId;
+public class LeaderServerStateTest {
+    @Test
+    public void role() throws Exception {
     }
 
-    public static Predicate<HeaderDecoder> forServer(final int serverId) {
-        return new DestinationFilter(serverId);
+    @Test
+    public void onTransition() throws Exception {
     }
 
-    @Override
-    public boolean test(final HeaderDecoder headerDecoder) {
-        final int destinationId = headerDecoder.destinationId();
-        return destinationId == serverId || destinationId == Peers.ALL;
+    @Test
+    public void processTick() throws Exception {
     }
+
+    @Test
+    public void onAppendResponse() throws Exception {
+    }
+
+    @Test
+    public void onCommandRequest() throws Exception {
+    }
+
 }

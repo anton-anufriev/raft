@@ -43,7 +43,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
-public class FollowerServerStateTest {
+public class PeerServerStateTest {
     private FollowerServerState followerServerState;
 
     private int serverId = 0;

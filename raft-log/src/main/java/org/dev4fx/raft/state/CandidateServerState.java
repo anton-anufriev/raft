@@ -38,7 +38,7 @@ public class CandidateServerState implements ServerState {
     private static final Logger LOGGER = LoggerFactory.getLogger(Role.CANDIDATE.name());
 
     private final PersistentState persistentState;
-    private final FollowersState followersState;
+    private final Peers peers;
     private final BiFunction<? super AppendRequestDecoder, ? super Logger, ? extends Transition> appendRequestHandler;
     private final Timer electionTimer;
     private final int serverId;
@@ -47,10 +47,8 @@ public class CandidateServerState implements ServerState {
     private final MutableDirectBuffer encoderBuffer;
     private final Publisher publisher;
 
-    private int votesCount;
-
     public CandidateServerState(final PersistentState persistentState,
-                                final FollowersState followersState,
+                                final Peers peers,
                                 final BiFunction<? super AppendRequestDecoder, ? super Logger, ? extends Transition> appendRequestHandler,
                                 final Timer electionTimer,
                                 final int serverId,
@@ -59,7 +57,7 @@ public class CandidateServerState implements ServerState {
                                 final MutableDirectBuffer encoderBuffer,
                                 final Publisher publisher) {
         this.persistentState = Objects.requireNonNull(persistentState);
-        this.followersState = Objects.requireNonNull(followersState);
+        this.peers = Objects.requireNonNull(peers);
         this.appendRequestHandler = Objects.requireNonNull(appendRequestHandler);
         this.electionTimer = Objects.requireNonNull(electionTimer);
         this.serverId = serverId;
@@ -93,6 +91,7 @@ public class CandidateServerState implements ServerState {
         final int term = persistentState.clearVoteForAndIncCurrentTerm();
         LOGGER.info("Starting new election, new term={}", term);
 
+        peers.reset();
         electionTimer.restart();
         voteForMyself();
         requestVoteFromAllServers();
@@ -120,12 +119,10 @@ public class CandidateServerState implements ServerState {
         final int sourceId = header.sourceId();
         final BooleanType voteGranted = voteResponseDecoder.voteGranted();
 
-        //FIXME need to make sure that same peer has not sent the same grant multiple times
-        // could use FollowersState to mark voted server
-
         if (term == currentTerm && voteGranted == BooleanType.T) {
             LOGGER.info("Vote granted by server {}", sourceId);
-            return incVoteCount();
+            peers.peer(sourceId).setGrantedVote(true);
+            return checkGrandedVotes();
         }
         LOGGER.info("Vote declined by server {}", sourceId);
         return Transition.STEADY;
@@ -133,7 +130,6 @@ public class CandidateServerState implements ServerState {
 
     private void voteForMyself() {
         persistentState.votedFor(serverId);
-        votesCount = 1;
     }
 
     private void requestVoteFromAllServers() {
@@ -150,7 +146,7 @@ public class CandidateServerState implements ServerState {
 
         voteRequestEncoder.wrap(encoderBuffer, headerLength)
                 .header()
-                .destinationId(Server.ALL)
+                .destinationId(Peers.ALL)
                 .sourceId(serverId)
                 .term(currentTerm);
 
@@ -161,11 +157,9 @@ public class CandidateServerState implements ServerState {
         publisher.publish(encoderBuffer, 0, headerLength + voteRequestEncoder.encodedLength());
     }
 
-    private Transition incVoteCount() {
-        votesCount++;
-        final int majority = followersState.majority();
-        if (votesCount >= majority) {
-            LOGGER.info("Received votes {}, majority {}", votesCount, majority);
+    private Transition checkGrandedVotes() {
+        if (peers.majorityOfVotes()) {
+            LOGGER.info("Received votes majority of votes");
             return Transition.TO_LEADER_NO_REPLAY;
         }
         return Transition.STEADY;

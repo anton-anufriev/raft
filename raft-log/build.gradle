@@ -28,7 +28,7 @@ configurations{
 
 sourceSets {
     main.java.srcDirs += file(generatedSrc)
-    generated.java.srcDir generatedSrc
+//    generated.java.srcDir generatedSrc
 }
 
 license {

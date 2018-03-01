@@ -30,18 +30,18 @@ import java.util.function.Consumer;
 import java.util.function.LongToIntFunction;
 import java.util.function.Supplier;
 
-public final class DefaultFollowersState implements FollowersState {
+public final class DefaultPeers implements Peers {
 
     private final int serverId;
-    private final Follower[] followers;
+    private final Peer[] peers;
     private final int majority;
-    private final BiConsumer<? super Consumer<? super Follower>, ? super Follower> forEachBiConsumer;
+    private final BiConsumer<? super Consumer<? super Peer>, ? super Peer> forEachBiConsumer;
 
-    public DefaultFollowersState(final int serverId,
-                                 final int serverCount,
-                                 final Supplier<Timer> timerFactory) {
+    public DefaultPeers(final int serverId,
+                        final int serverCount,
+                        final Supplier<Timer> timerFactory) {
         this.serverId = serverId;
-        this.followers = initFollowers(serverId, serverCount, timerFactory);
+        this.peers = init(serverId, serverCount, timerFactory);
         this.majority = -Math.floorDiv(serverCount, -2);
         this.forEachBiConsumer = Consumer::accept;
     }
@@ -52,40 +52,48 @@ public final class DefaultFollowersState implements FollowersState {
     }
 
     @Override
-    public int followersMajority() {
+    public int peersMajority() {
         return majority - 1;
     }
 
     @Override
-    public Follower follower(int followerId) {
-        return followers[followerId];
+    public Peer peer(int serverId) {
+        return peers[serverId];
     }
 
     @Override
-    public void resetFollowers(final long nextIndex) {
-        forEach(nextIndex, (nextIndex1, follower) -> follower.nextIndex(nextIndex1).resetMatchIndex().heartbeatTimer().reset());
+    public void resetAsFollowers(final long nextIndex) {
+        forEach(nextIndex, (nextIndex1, peer) -> peer
+                .reset()
+                .nextIndex(nextIndex1)
+                .heartbeatTimer().reset());
     }
 
-    private static Follower[] initFollowers(final int serverId, final int serverCount, Supplier<Timer> timerFactory) {
-        final Follower[] followers = new Follower[serverCount];
+    @Override
+    public void reset() {
+        forEach(Peer::reset);
+    }
+
+    private static Peer[] init(final int serverId, final int serverCount, Supplier<Timer> timerFactory) {
+        final Peer[] peers = new Peer[serverCount];
         for (int id = 0; id < serverCount; id++) {
             if (id != serverId) {
-                followers[id] = new Follower(id, timerFactory.get());
+                peers[id] = new DefaultPeer(id, timerFactory.get());
             }
         }
-        return followers;
+        return peers;
     }
 
     @Override
-    public void forEach(final Consumer<? super Follower> consumer) {
+    public void forEach(final Consumer<? super Peer> consumer) {
         forEach(consumer, forEachBiConsumer);
     }
 
     @Override
-    public <T> void forEach(T value, final BiConsumer<T, ? super Follower> consumer) {
-        for (final Follower follower : followers) {
-            if (follower != null && follower.serverId() != serverId) {
-                consumer.accept(value, follower);
+    public <T> void forEach(T value, final BiConsumer<T, ? super Peer> consumer) {
+        for (final Peer peer : peers) {
+            if (peer != null && peer.serverId() != serverId) {
+                consumer.accept(value, peer);
             }
         }
     }
@@ -98,9 +106,9 @@ public final class DefaultFollowersState implements FollowersState {
         long minIndexHigherThanCommitIndex = Long.MAX_VALUE;
         int higherThanCommitCount = 0;
 
-        for (final Follower follower : followers) {
-            if (follower != null && follower.serverId() != serverId) {
-                final long matchIndex = follower.matchIndex();
+        for (final Peer peer : peers) {
+            if (peer != null && peer.serverId() != serverId) {
+                final long matchIndex = peer.matchIndex();
                 if (matchIndex > leaderCommitIndex) {
                     final int matchTerm = termAtIndex.applyAsInt(matchIndex);
                     if (matchTerm == currentTerm) {
@@ -111,7 +119,21 @@ public final class DefaultFollowersState implements FollowersState {
 
             }
         }
-        return higherThanCommitCount >= followersMajority() ? minIndexHigherThanCommitIndex : leaderCommitIndex;
+        return higherThanCommitCount >= peersMajority() ? minIndexHigherThanCommitIndex : leaderCommitIndex;
     }
 
+    @Override
+    public boolean majorityOfVotes() {
+        final int neededVotes = peersMajority();
+        int receivedVotes = 0;
+        for (final Peer peer : peers) {
+            if (peer != null && peer.serverId() != serverId) {
+                if (peer.grantedVote()) receivedVotes++;
+                if (receivedVotes == neededVotes) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }

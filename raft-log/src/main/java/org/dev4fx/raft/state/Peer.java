@@ -23,24 +23,30 @@
  */
 package org.dev4fx.raft.state;
 
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.function.LongToIntFunction;
+import org.dev4fx.raft.timer.Timer;
 
-public interface FollowersState {
-    int majority();
+public interface Peer {
+    int serverId();
 
-    int followersMajority();
+    Timer heartbeatTimer();
 
-    Follower follower(int followerId);
+    long nextIndex();
 
-    void resetFollowers(long nextIndex);
+    default long previousIndex() {
+        return nextIndex() - 1;
+    }
 
-    void forEach(Consumer<? super Follower> consumer);
+    long matchIndex();
 
-    <T> void forEach(T value, BiConsumer<T, ? super Follower> consumer);
+    Peer nextIndex(long index);
 
-    long majorityCommitIndex(long leaderCommitIndex,
-                             int currentTerm,
-                             LongToIntFunction termAtIndex);
+    boolean grantedVote();
+
+    Peer setGrantedVote(boolean grantedVote);
+
+    boolean comparePreviousAndDecrementNextIndex(long previousIndex);
+
+    boolean comparePreviousAndUpdateMatchAndNextIndex(long previousIndex, long matchIndex);
+
+    Peer reset();
 }

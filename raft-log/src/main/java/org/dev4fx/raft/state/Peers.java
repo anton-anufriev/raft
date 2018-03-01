@@ -23,10 +23,30 @@
  */
 package org.dev4fx.raft.state;
 
-public class Server {
-    public static final int ALL = -1;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.LongToIntFunction;
 
-    private Server() {
-        throw new IllegalStateException("No Server for you");
-    }
+public interface Peers {
+    int ALL = -1;
+
+    int majority();
+
+    int peersMajority();
+
+    Peer peer(int serverId);
+
+    void resetAsFollowers(long nextIndex);
+
+    void reset();
+
+    void forEach(Consumer<? super Peer> consumer);
+
+    <T> void forEach(T value, BiConsumer<T, ? super Peer> consumer);
+
+    long majorityCommitIndex(long leaderCommitIndex,
+                             int currentTerm,
+                             LongToIntFunction termAtIndex);
+
+    boolean majorityOfVotes();
 }

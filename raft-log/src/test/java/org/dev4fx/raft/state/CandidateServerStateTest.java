@@ -52,7 +52,9 @@ public class CandidateServerStateTest {
     @Mock
     private PersistentState persistentState;
     @Mock
-    private FollowersState followersState;
+    private Peers peers;
+    @Mock
+    private Peer peer;
     @Mock
     private BiFunction<AppendRequestDecoder, Logger, Transition> appendRequestHandler;
     @Mock
@@ -79,7 +81,7 @@ public class CandidateServerStateTest {
     @Before
     public void setUp() throws Exception {
         candidateServerState = new CandidateServerState(persistentState,
-                followersState, appendRequestHandler, electionTimer, serverId,
+                peers, appendRequestHandler, electionTimer, serverId,
                 messageHeaderEncoder,
                 voteRequestEncoder,
                 encoderBuffer,
@@ -117,7 +119,7 @@ public class CandidateServerStateTest {
 
         assertThat(voteRequest)
                 .contains("sourceId=" + serverId)
-                .contains("destinationId=" + Server.ALL)
+                .contains("destinationId=" + Peers.ALL)
                 .contains("term=" + newTerm)
                 .contains("lastLogKey=(term=" + lastLogTerm)
                 .contains("index="+lastLogIndex);
@@ -172,7 +174,7 @@ public class CandidateServerStateTest {
     }
 
     @Test
-    public void onVoteResponse() throws Exception {
+    public void onVoteResponse_should_transition_to_leader_when_terms_match_and_vote_granted_and_majority_voted() throws Exception {
         final int responseTerm = 5;
         final int currentTerm = 5;
         final int followerId = 2;
@@ -182,11 +184,63 @@ public class CandidateServerStateTest {
         when(headerDecoder.term()).thenReturn(responseTerm);
         when(headerDecoder.sourceId()).thenReturn(followerId);
         when(voteResponseDecoder.voteGranted()).thenReturn(voteGranted);
-
         when(persistentState.currentTerm()).thenReturn(currentTerm);
-        when(followersState.majority()).thenReturn(2);
+        when(peers.peer(followerId)).thenReturn(peer);
+        when(peers.majorityOfVotes()).thenReturn(true);
 
-        candidateServerState.onVoteResponse(voteResponseDecoder);
+        assertThat(candidateServerState.onVoteResponse(voteResponseDecoder)).isEqualTo(Transition.TO_LEADER_NO_REPLAY);
+        verify(peer).setGrantedVote(true);
+    }
+
+    @Test
+    public void onVoteResponse_should_steady_transition_when_terms_match_and_vote_granted_and_no_majority_voted() throws Exception {
+        final int responseTerm = 5;
+        final int currentTerm = 5;
+        final int followerId = 2;
+        final BooleanType voteGranted = BooleanType.T;
+
+        when(voteResponseDecoder.header()).thenReturn(headerDecoder);
+        when(headerDecoder.term()).thenReturn(responseTerm);
+        when(headerDecoder.sourceId()).thenReturn(followerId);
+        when(voteResponseDecoder.voteGranted()).thenReturn(voteGranted);
+        when(persistentState.currentTerm()).thenReturn(currentTerm);
+        when(peers.peer(followerId)).thenReturn(peer);
+        when(peers.majorityOfVotes()).thenReturn(false);
+
+        assertThat(candidateServerState.onVoteResponse(voteResponseDecoder)).isEqualTo(Transition.STEADY);
+        verify(peer).setGrantedVote(true);
+    }
+
+    @Test
+    public void onVoteResponse_should_steady_transition_when_terms_match_and_vote_not_granted() throws Exception {
+        final int responseTerm = 5;
+        final int currentTerm = 5;
+        final int followerId = 2;
+        final BooleanType voteNotGranted = BooleanType.F;
+
+        when(voteResponseDecoder.header()).thenReturn(headerDecoder);
+        when(headerDecoder.term()).thenReturn(responseTerm);
+        when(headerDecoder.sourceId()).thenReturn(followerId);
+        when(voteResponseDecoder.voteGranted()).thenReturn(voteNotGranted);
+        when(persistentState.currentTerm()).thenReturn(currentTerm);
+
+        assertThat(candidateServerState.onVoteResponse(voteResponseDecoder)).isEqualTo(Transition.STEADY);
+    }
+
+    @Test
+    public void onVoteResponse_should_steady_transition_when_terms_dont_match_and_vote_granted() throws Exception {
+        final int responseTerm = 4;
+        final int currentTerm = 5;
+        final int followerId = 2;
+        final BooleanType voteGranted = BooleanType.T;
+
+        when(voteResponseDecoder.header()).thenReturn(headerDecoder);
+        when(headerDecoder.term()).thenReturn(responseTerm);
+        when(headerDecoder.sourceId()).thenReturn(followerId);
+        when(voteResponseDecoder.voteGranted()).thenReturn(voteGranted);
+        when(persistentState.currentTerm()).thenReturn(currentTerm);
+
+        assertThat(candidateServerState.onVoteResponse(voteResponseDecoder)).isEqualTo(Transition.STEADY);
     }
 
 }
