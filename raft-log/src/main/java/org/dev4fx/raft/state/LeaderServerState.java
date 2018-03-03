@@ -113,9 +113,10 @@ public class LeaderServerState implements ServerState {
         if (successful == BooleanType.F) {
             LOGGER.info("Unsuccessful appendResponse from server {}", sourceId);
             if (!peer.comparePreviousAndDecrementNextIndex(requestPrevLogIndex)) {
-                LOGGER.info("Unsuccessful appendResponse prevLogIndex {} does not match {}", requestPrevLogIndex, peer.previousIndex());
+                LOGGER.info("Unsuccessful appendResponse prevLogIndex {} does not match {} from server {}, awaiting newer response", requestPrevLogIndex, peer.previousIndex(), sourceId);
+            } else {
+                sendAppendRequest(peer, true);
             }
-            sendAppendRequest(peer, true);
         } else {
             LOGGER.info("Successful appendResponse from server {}", sourceId);
             final long matchLogIndex = appendResponseDecoder.matchLogIndex();

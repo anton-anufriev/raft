@@ -68,5 +68,5 @@ dependencies {
     testCompile 'org.tools4j:tools4j-spockito:1.6'
     testCompile 'org.assertj:assertj-core:3.4.1'
 
-    codecGeneration 'uk.co.real-logic:sbe-all:1.7.7'
+    codecGeneration 'uk.co.real-logic:sbe-all:1.7.8'
 }

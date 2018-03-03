@@ -25,8 +25,6 @@ package org.dev4fx.raft.log.api;
 
 import org.agrona.DirectBuffer;
 import org.dev4fx.raft.state.LogContainment;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 

@@ -29,7 +29,7 @@ import org.dev4fx.raft.sbe.*;
 public interface ServerState {
     Role role();
     default void onTransition() {}
-    default Transition processTick() {return Transition.STEADY;};
+    default Transition processTick() {return Transition.STEADY;}
     default Transition onVoteRequest(VoteRequestDecoder voteRequestDecoder) {return Transition.STEADY;}
     default Transition onVoteResponse(VoteResponseDecoder voteResponseDecoder) {return Transition.STEADY;}
     default Transition onAppendRequest(AppendRequestDecoder appendRequestDecoder) {return Transition.STEADY;}

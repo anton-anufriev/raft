@@ -21,14 +21,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.timer;
+package org.dev4fx.raft.state;
 
-public interface Clock {
-    long currentTimeMillis();
+public final class DefaultVolatileState implements VolatileState {
 
-    Clock DEFAULT = System::currentTimeMillis;
+    private long commitIndex = -1;
+    private long lastApplied = -1;
 
-    static Clock fixed(final long time) {
-        return () -> time;
+    @Override
+    public long commitIndex() {
+        return commitIndex;
+    }
+
+    @Override
+    public VolatileState commitIndex(final long commitIndex) {
+        this.commitIndex = commitIndex;
+        return this;
+    }
+
+    @Override
+    public long lastApplied() {
+        return lastApplied;
+    }
+
+    @Override
+    public VolatileState lastApplied(final long lastApplied) {
+        this.lastApplied = lastApplied;
+        return this;
     }
 }

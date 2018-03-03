@@ -349,7 +349,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
         final Supplier<Timer> heartbeatTimerFactory = () -> new DefaultTimer(clock, heartbeatTimeoutMillis, heartbeatTimeoutMillis);
 
         final PersistentState persistentState = new DefaultPersistentState(indexRegionRingAccessor, payloadRegionRingAccessor, headerRegionRingAccessor);
-        final VolatileState volatileState = new VolatileState();
+        final VolatileState volatileState = new DefaultVolatileState();
         final Peers peers = new DefaultPeers(serverId, clusterSize, heartbeatTimerFactory);
 
         final Timer electionTimer = new DefaultTimer(clock, minElectionTimeoutMillis, maxElectionTimeoutMillis);
