@@ -73,6 +73,7 @@ public class VoteRequestHandlerTest {
         //when
         final Transition transition = voteRequestHandler.apply(voteRequestDecoder, logger);
 
+        //then
         assertThat(transition).isEqualTo(Transition.TO_FOLLOWER_NO_REPLAY);
 
         final StringBuilder voteResponse = new StringBuilder();
@@ -106,6 +107,7 @@ public class VoteRequestHandlerTest {
         //when
         final Transition transition = voteRequestHandler.apply(voteRequestDecoder, logger);
 
+        //then
         assertThat(transition).isEqualTo(Transition.TO_FOLLOWER_NO_REPLAY);
 
         final StringBuilder voteResponse = new StringBuilder();
@@ -141,6 +143,7 @@ public class VoteRequestHandlerTest {
         //when
         final Transition transition = voteRequestHandler.apply(voteRequestDecoder, logger);
 
+        //then
         assertThat(transition).isEqualTo(Transition.STEADY);
 
         final StringBuilder voteResponse = new StringBuilder();
@@ -175,6 +178,7 @@ public class VoteRequestHandlerTest {
         //when
         final Transition transition = voteRequestHandler.apply(voteRequestDecoder, logger);
 
+        //then
         assertThat(transition).isEqualTo(Transition.STEADY);
 
         final StringBuilder voteResponse = new StringBuilder();
@@ -207,6 +211,7 @@ public class VoteRequestHandlerTest {
         //when
         final Transition transition = voteRequestHandler.apply(voteRequestDecoder, logger);
 
+        //then
         assertThat(transition).isEqualTo(Transition.STEADY);
 
         final StringBuilder voteResponse = new StringBuilder();
