@@ -23,12 +23,10 @@
  */
 package org.dev4fx.raft.state;
 
-import org.dev4fx.raft.timer.Timer;
-
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.IntFunction;
 import java.util.function.LongToIntFunction;
-import java.util.function.Supplier;
 
 public final class DefaultPeers implements Peers {
 
@@ -39,9 +37,9 @@ public final class DefaultPeers implements Peers {
 
     public DefaultPeers(final int serverId,
                         final int serverCount,
-                        final Supplier<Timer> timerFactory) {
+                        final IntFunction<? extends Peer> peerFactory) {
         this.serverId = serverId;
-        this.peers = init(serverId, serverCount, timerFactory);
+        this.peers = init(serverId, serverCount, peerFactory);
         this.majority = -Math.floorDiv(serverCount, -2);
         this.forEachBiConsumer = Consumer::accept;
     }
@@ -58,6 +56,9 @@ public final class DefaultPeers implements Peers {
 
     @Override
     public Peer peer(int serverId) {
+        if (serverId < 0 || serverId >= peers.length) {
+            throw new IllegalArgumentException("ServerId " + serverId + " is out of boundary, >= 0 && < " + peers.length);
+        }
         return peers[serverId];
     }
 
@@ -74,11 +75,11 @@ public final class DefaultPeers implements Peers {
         forEach(Peer::reset);
     }
 
-    private static Peer[] init(final int serverId, final int serverCount, Supplier<Timer> timerFactory) {
+    private static Peer[] init(final int serverId, final int serverCount, final IntFunction<? extends Peer> peerFactory) {
         final Peer[] peers = new Peer[serverCount];
         for (int id = 0; id < serverCount; id++) {
             if (id != serverId) {
-                peers[id] = new DefaultPeer(id, timerFactory.get());
+                peers[id] = peerFactory.apply(id);
             }
         }
         return peers;

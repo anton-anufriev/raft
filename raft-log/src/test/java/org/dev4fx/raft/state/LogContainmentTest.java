@@ -23,37 +23,13 @@
  */
 package org.dev4fx.raft.state;
 
-import org.dev4fx.raft.transport.Poller;
+import org.junit.Test;
 
-import java.util.function.*;
-import java.util.stream.IntStream;
+import static org.junit.Assert.*;
 
-public interface Peers {
-    int ALL = -1;
-
-    int majority();
-
-    int peersMajority();
-
-    Peer peer(int serverId);
-
-    void resetAsFollowers(long nextIndex);
-
-    void reset();
-
-    void forEach(Consumer<? super Peer> consumer);
-
-    <T> void forEach(T value, BiConsumer<T, ? super Peer> consumer);
-
-    long majorityCommitIndex(long leaderCommitIndex,
-                             int currentTerm,
-                             LongToIntFunction termAtIndex);
-
-    boolean majorityOfVotes();
-
-    static void forEachPeer(final int clusterSize, final int leaderId, final IntConsumer peerConsumer) {
-        IntStream.range(0, clusterSize)
-                .filter(destinationId -> destinationId != leaderId)
-                .forEach(peerConsumer);
+public class LogContainmentTest {
+    @Test
+    public void containmentFor() throws Exception {
     }
+
 }

@@ -64,7 +64,7 @@ dependencies {
 
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
-    testCompile 'org.mockito:mockito-all:1.10.19'
+    testCompile group: 'org.mockito', name: 'mockito-core', version: '2.15.0'
     testCompile 'org.tools4j:tools4j-spockito:1.6'
     testCompile 'org.assertj:assertj-core:3.4.1'
 

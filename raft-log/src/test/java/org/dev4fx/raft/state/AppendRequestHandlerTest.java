@@ -33,7 +33,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 
 import java.nio.ByteBuffer;
@@ -218,7 +218,6 @@ public class AppendRequestHandlerTest {
         when(prevLogKeyDecoder.index()).thenReturn(prevLogIndex);
         when(prevLogKeyDecoder.term()).thenReturn(prevLogTerm);
         when(appendRequestDecoder.commitLogIndex()).thenReturn(leaderCommitIndex);
-        when(volatileState.commitIndex()).thenReturn(-1L);
 
         when(persistentState.contains(prevLogIndex, prevLogTerm)).thenReturn(LogContainment.IN);
         when(persistentState.contains(nextLogIndex, nextLogTerm)).thenReturn(LogContainment.CONFLICT);
@@ -253,7 +252,6 @@ public class AppendRequestHandlerTest {
         when(prevLogKeyDecoder.index()).thenReturn(prevLogIndex);
         when(prevLogKeyDecoder.term()).thenReturn(prevLogTerm);
         when(appendRequestDecoder.commitLogIndex()).thenReturn(leaderCommitIndex);
-        when(volatileState.commitIndex()).thenReturn(-1L);
 
         when(persistentState.contains(prevLogIndex, prevLogTerm)).thenReturn(LogContainment.OUT);
 
@@ -296,7 +294,6 @@ public class AppendRequestHandlerTest {
         when(prevLogKeyDecoder.index()).thenReturn(prevLogIndex);
         when(prevLogKeyDecoder.term()).thenReturn(prevLogTerm);
         when(appendRequestDecoder.commitLogIndex()).thenReturn(leaderCommitIndex);
-        when(volatileState.commitIndex()).thenReturn(-1L);
 
         when(persistentState.contains(prevLogIndex, prevLogTerm)).thenReturn(LogContainment.CONFLICT);
 

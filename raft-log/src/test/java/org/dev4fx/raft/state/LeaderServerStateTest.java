@@ -35,10 +35,9 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.nio.ByteBuffer;
-import java.sql.Time;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
@@ -192,7 +191,6 @@ public class LeaderServerStateTest {
         final int peerNexTerm=5;
         final long commitIndex = 15;
 
-        when(persistentState.size()).thenReturn(logSize);
         when(persistentState.lastIndex()).thenReturn(logSize - 1);
 
         when(peer.previousIndex()).thenReturn(peerPrevIndex);
@@ -212,7 +210,7 @@ public class LeaderServerStateTest {
         final byte[] commandArray = commandText.getBytes();
 
         doAnswer(invocation -> {
-            invocation.getArgumentAt(1, MutableDirectBuffer.class).wrap(commandArray, 0, commandArray.length);
+            invocation.<MutableDirectBuffer>getArgument(1).wrap(commandArray, 0, commandArray.length);
             return invocation;
         }).when(persistentState).wrap(peerNexIndex, commandDecoderBuffer);
 
@@ -252,14 +250,12 @@ public class LeaderServerStateTest {
         when(appendResponseDecoder.prevLogIndex()).thenReturn(prevLogIndex);
         when(appendResponseDecoder.matchLogIndex()).thenReturn(matchIndex);
         when(appendResponseDecoder.successful()).thenReturn(BooleanType.T);
-        when(headerDecoder.term()).thenReturn(responseTerm);
         when(headerDecoder.sourceId()).thenReturn(peerServerId);
         when(persistentState.currentTerm()).thenReturn(currentTerm);
         when(peers.peer(peerServerId)).thenReturn(peer);
 
         when(peer.comparePreviousAndUpdateMatchAndNextIndex(prevLogIndex, matchIndex)).thenReturn(true);
 
-        when(persistentState.size()).thenReturn(logSize);
         when(persistentState.lastIndex()).thenReturn(logSize - 1);
 
         when(peer.previousIndex()).thenReturn(matchIndex);
@@ -309,17 +305,12 @@ public class LeaderServerStateTest {
 
         when(appendResponseDecoder.header()).thenReturn(headerDecoder);
         when(appendResponseDecoder.prevLogIndex()).thenReturn(prevLogIndex);
-        when(appendResponseDecoder.matchLogIndex()).thenReturn(matchIndex);
         when(appendResponseDecoder.successful()).thenReturn(BooleanType.F);
-        when(headerDecoder.term()).thenReturn(responseTerm);
         when(headerDecoder.sourceId()).thenReturn(peerServerId);
         when(persistentState.currentTerm()).thenReturn(currentTerm);
         when(peers.peer(peerServerId)).thenReturn(peer);
 
         when(peer.comparePreviousAndDecrementNextIndex(prevLogIndex)).thenReturn(true);
-
-        when(persistentState.size()).thenReturn(logSize);
-        //when(persistentState.lastIndex()).thenReturn(logSize - 1);
 
         when(peer.previousIndex()).thenReturn(prevLogIndex - 1);
         when(persistentState.term(prevLogIndex - 1)).thenReturn(prevPrevTerm);
@@ -354,7 +345,6 @@ public class LeaderServerStateTest {
         final int peerNexTerm=5;
         final long commitIndex = 15;
 
-        when(persistentState.size()).thenReturn(logSize);
         when(persistentState.lastIndex()).thenReturn(logSize - 1);
 
         when(peer.previousIndex()).thenReturn(peerPrevIndex);
@@ -368,7 +358,6 @@ public class LeaderServerStateTest {
         when(peer.serverId()).thenReturn(peerServerId);
         when(volatileState.commitIndex()).thenReturn(commitIndex);
         when(peer.heartbeatTimer()).thenReturn(timer);
-        when(timer.hasTimeoutElapsed()).thenReturn(true);
 
 
         final String commandText = "This is the command";

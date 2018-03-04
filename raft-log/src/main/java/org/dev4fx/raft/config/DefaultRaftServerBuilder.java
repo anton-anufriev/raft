@@ -350,7 +350,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
 
         final PersistentState persistentState = new DefaultPersistentState(indexRegionRingAccessor, payloadRegionRingAccessor, headerRegionRingAccessor);
         final VolatileState volatileState = new DefaultVolatileState();
-        final Peers peers = new DefaultPeers(serverId, clusterSize, heartbeatTimerFactory);
+        final Peers peers = new DefaultPeers(serverId, clusterSize, peerId -> new DefaultPeer(peerId, heartbeatTimerFactory.get()));
 
         final Timer electionTimer = new DefaultTimer(clock, minElectionTimeoutMillis, maxElectionTimeoutMillis);
 
