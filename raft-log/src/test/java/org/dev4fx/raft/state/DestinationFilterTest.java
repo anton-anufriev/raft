@@ -23,12 +23,39 @@
  */
 package org.dev4fx.raft.state;
 
-public interface VolatileState {
-    long commitIndex();
+import org.dev4fx.raft.sbe.HeaderDecoder;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.runners.MockitoJUnitRunner;
 
-    VolatileState commitIndex(long commitIndex);
+import java.util.function.Predicate;
 
-    long lastApplied();
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
-    VolatileState lastApplied(long lastApplied);
+@RunWith(MockitoJUnitRunner.class)
+public class DestinationFilterTest {
+    private int serverId = 1;
+    @Mock
+    private HeaderDecoder headerDecoder;
+    private Predicate<HeaderDecoder> destinationFilter;
+
+    @Before
+    public void setUp() throws Exception {
+        destinationFilter = DestinationFilter.forServer(serverId);
+    }
+
+    @Test
+    public void test_should_return_true_when_header_destinationId_matches_serverId() throws Exception {
+        when(headerDecoder.destinationId()).thenReturn(serverId);
+        assertThat(destinationFilter.test(headerDecoder)).isTrue();
+    }
+
+    @Test
+    public void test_should_return_false_when_header_destinationId_matches_serverId() throws Exception {
+        when(headerDecoder.destinationId()).thenReturn(2);
+        assertThat(destinationFilter.test(headerDecoder)).isFalse();
+    }
 }
