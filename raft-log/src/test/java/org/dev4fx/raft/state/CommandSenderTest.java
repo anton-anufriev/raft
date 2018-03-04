@@ -23,11 +23,53 @@
  */
 package org.dev4fx.raft.state;
 
+import org.agrona.MutableDirectBuffer;
+import org.agrona.concurrent.UnsafeBuffer;
+import org.dev4fx.raft.sbe.CommandRequestEncoder;
+import org.dev4fx.raft.sbe.MessageHeaderEncoder;
+import org.dev4fx.raft.transport.Publisher;
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
+import java.nio.ByteBuffer;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
+
+@RunWith(MockitoJUnitRunner.class)
 public class CommandSenderTest {
-    @Test
-    public void publish() throws Exception {
+    @Mock
+    private Publisher publisher;
+    private MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
+    private CommandRequestEncoder commandRequestEncoder = new CommandRequestEncoder();
+    private MutableDirectBuffer encoderBuffer = new UnsafeBuffer(ByteBuffer.allocate(512));
+
+    private CommandSender commandSender;
+
+    @Before
+    public void setUp() throws Exception {
+        commandSender = new CommandSender(publisher, messageHeaderEncoder,
+                commandRequestEncoder, encoderBuffer);
     }
 
+    @Test
+    public void publish() throws Exception {
+        final UnsafeBuffer command = new UnsafeBuffer("test command".getBytes());
+        commandSender.publish(12, 234, command, 0, command.capacity());
+
+        verify(publisher).publish(encoderBuffer, 0, 34);
+
+        final StringBuilder commandMessage = new StringBuilder();
+        commandRequestEncoder.appendTo(commandMessage);
+
+        System.out.println(commandMessage);
+
+        assertThat(commandMessage)
+                .contains("sourceId=" + 12)
+                .contains("sequence=" + 234)
+                .contains("payload=" + command.capacity() + " bytes of raw data");
+    }
 }
