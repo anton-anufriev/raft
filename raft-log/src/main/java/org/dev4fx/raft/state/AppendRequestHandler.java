@@ -63,10 +63,10 @@ public class AppendRequestHandler implements BiFunction<AppendRequestDecoder, Lo
 
     @Override
     public Transition apply(final AppendRequestDecoder appendRequestDecoder, final Logger logger) {
-        final int appendRequestTerm = appendRequestDecoder.header().term();
+        final HeaderDecoder header = appendRequestDecoder.header();
+        final int appendRequestTerm = header.term();
+        final int leaderId = header.sourceId();
         final int currentTerm = persistentState.currentTerm();
-
-        final int leaderId = appendRequestDecoder.header().sourceId();
 
         final LogKeyDecoder prevLogKeyDecoder = appendRequestDecoder.prevLogKey();
         final long requestPrevIndex = prevLogKeyDecoder.index();
@@ -153,7 +153,7 @@ public class AppendRequestHandler implements BiFunction<AppendRequestDecoder, Lo
                     logger.info("Skipped index {}, term {}", nextIndex, nextTermAtIndex);
                     break;
                 default:
-                    throw new RuntimeException("Should not be in conflict");
+                    throw new IllegalStateException("Should not be in conflict");
             }
             appendRequestDecoder.limit(offset + length);
         }
