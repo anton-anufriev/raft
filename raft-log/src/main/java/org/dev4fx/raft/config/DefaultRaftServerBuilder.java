@@ -428,6 +428,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                 appendResponseDecoder,
                 candidateServerState,
                 leaderServerState,
+                followerServerState,
                 followerServerState);
 
         final List<ProcessStep> processSteps = new ArrayList<>(clusterSize - 1 + 3);

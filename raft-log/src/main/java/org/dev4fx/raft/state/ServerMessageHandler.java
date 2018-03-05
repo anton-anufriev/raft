@@ -49,7 +49,8 @@ public final class ServerMessageHandler implements MessageHandler, ProcessStep {
                                 final AppendResponseDecoder appendResponseDecoder,
                                 final ServerState candidateState,
                                 final ServerState leaderState,
-                                final ServerState followerState) {
+                                final ServerState followerState,
+                                final ServerState initialState) {
         this.messageHeaderDecoder = Objects.requireNonNull(messageHeaderDecoder);
         this.voteRequestDecoder = Objects.requireNonNull(voteRequestDecoder);
         this.voteResponseDecoder = Objects.requireNonNull(voteResponseDecoder);
@@ -58,7 +59,8 @@ public final class ServerMessageHandler implements MessageHandler, ProcessStep {
         Objects.requireNonNull(candidateState);
         Objects.requireNonNull(leaderState);
         Objects.requireNonNull(followerState);
-        this.serverState = followerState;
+        Objects.requireNonNull(initialState);
+        this.serverState = initialState;
         this.roleToState = role -> {
             if (role == leaderState.role()) return leaderState;
             if (role == followerState.role()) return followerState;
