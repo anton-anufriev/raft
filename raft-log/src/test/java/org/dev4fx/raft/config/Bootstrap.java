@@ -29,7 +29,9 @@ import io.aeron.Subscription;
 import io.aeron.driver.MediaDriver;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.dev4fx.raft.process.Service;
+import org.dev4fx.raft.sbe.CommandRequestDecoder;
 import org.dev4fx.raft.sbe.CommandRequestEncoder;
+import org.dev4fx.raft.sbe.MessageHeaderDecoder;
 import org.dev4fx.raft.sbe.MessageHeaderEncoder;
 import org.dev4fx.raft.state.CommandSender;
 import org.dev4fx.raft.state.LoggingStateMachine;
@@ -93,7 +95,7 @@ public class Bootstrap {
 
         final RaftServerBuilder builder = RaftServerBuilder
                 .forAeronTransport(aeron, commandChannel, commandStreamId, serverToChannel)
-                .stateMachineFactory(LoggingStateMachine::new)
+                .stateMachineFactory(serverId -> new LoggingStateMachine(serverId, new CommandRequestDecoder(), new MessageHeaderDecoder(), new StringBuilder()))
                 .maxAppendBatchSize(4)
                 .onLeaderTransitionHandler(onLeaderTransitionHandler);
 

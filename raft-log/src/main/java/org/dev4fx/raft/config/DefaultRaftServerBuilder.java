@@ -67,7 +67,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     };
     private static final IntFunction<? extends IdleStrategy>  DEFAULT_IDLE_STRATEGY_FACTORY = serverId -> new BackoffIdleStrategy(100L, 100L, 10L, 100L);
     private static final RegionRingFactory DEFAULT_REGION_RING_FACTORY = RegionRingFactory.forSync(RegionFactory.SYNC);
-    private static final IntFunction<? extends MessageHandler> DEFAULT_STATE_MACHINE_FACTORY = LoggingStateMachine::new;
+    private static final IntFunction<? extends MessageHandler> DEFAULT_STATE_MACHINE_FACTORY = serverId -> new LoggingStateMachine(serverId, new CommandRequestDecoder(), new MessageHeaderDecoder(), new StringBuilder());
     private static final long MAX_FILE_SIZE = 64 * 16 * 1024 * 1024;
 
     private final PollerFactory commandPollerFactory;

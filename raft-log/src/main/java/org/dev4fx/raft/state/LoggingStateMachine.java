@@ -28,16 +28,24 @@ import org.dev4fx.raft.sbe.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
 public class LoggingStateMachine implements MessageHandler {
     private final static Logger LOGGER = LoggerFactory.getLogger("SM");
 
     private final int serverId;
-    private final CommandRequestDecoder commandRequestDecoder = new CommandRequestDecoder();
-    private final MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
-    private final StringBuilder stringBuilder = new StringBuilder();
+    private final CommandRequestDecoder commandRequestDecoder;
+    private final MessageHeaderDecoder messageHeaderDecoder;
+    private final StringBuilder stringBuilder;
 
-    public LoggingStateMachine(final int serverId) {
+    public LoggingStateMachine(final int serverId,
+                               final CommandRequestDecoder commandRequestDecoder,
+                               final MessageHeaderDecoder messageHeaderDecoder,
+                               final StringBuilder stringBuilder) {
         this.serverId = serverId;
+        this.commandRequestDecoder = Objects.requireNonNull(commandRequestDecoder);
+        this.messageHeaderDecoder = Objects.requireNonNull(messageHeaderDecoder);
+        this.stringBuilder = Objects.requireNonNull(stringBuilder);
     }
 
     @Override
