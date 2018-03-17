@@ -11,6 +11,8 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
     private final ConcurrentMap<K, V> map;
     private final Queue<? super MapCommand<K,V>> commandQueue;
 
+    private KeySetWrapper keySet;
+
     public RaftDistributedMap(final int mapId,
                               final ConcurrentMap<K, V> map,
                               final Queue<? super MapCommand<K,V>> commandQueue) {
@@ -80,10 +82,10 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
         getValue(nonBlockingClear(), "clear");
     }
 
-    //FIXME support elements removal via raft
     @Override
     public Set<K> keySet() {
-        return map.keySet();
+        KeySetWrapper ks;
+        return (ks = keySet) != null ? ks : (keySet = new KeySetWrapper(map.keySet()));
     }
 
     //FIXME support elements removal via raft
@@ -129,5 +131,118 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
     @Override
     public String toString() {
         return map.toString();
+    }
+
+    private class KeySetWrapper implements Set<K> {
+        final Set<K> delegateKeySet;
+
+        public KeySetWrapper(final Set<K> delegateKeySet) {
+            this.delegateKeySet = Objects.requireNonNull(delegateKeySet);
+        }
+
+        @Override
+        public int size() {
+            return delegateKeySet.size();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return delegateKeySet.isEmpty();
+        }
+
+        @Override
+        public boolean contains(final Object o) {
+            return delegateKeySet.contains(o);
+        }
+
+        @Override
+        public Iterator<K> iterator() {
+            return new KeySetIteratorWrapper(delegateKeySet.iterator());
+        }
+
+        @Override
+        public Object[] toArray() {
+            return delegateKeySet.toArray();
+        }
+
+        @Override
+        public <T> T[] toArray(final T[] a) {
+            return delegateKeySet.toArray(a);
+        }
+
+        @Override
+        public boolean add(final K k) {
+            return delegateKeySet.add(k);
+        }
+
+        @Override
+        public boolean remove(final Object o) {
+            return RaftDistributedMap.this.remove(0) != null;
+        }
+
+        @Override
+        public boolean containsAll(final Collection<?> c) {
+            return delegateKeySet.containsAll(c);
+        }
+
+        @Override
+        public boolean addAll(final Collection<? extends K> c) {
+            return delegateKeySet.addAll(c);
+        }
+
+        @Override
+        public boolean retainAll(final Collection<?> c) {
+            if (c == null) throw new NullPointerException();
+            boolean modified = false;
+            for (Iterator<K> it = iterator(); it.hasNext();) {
+                if (c.contains(it.next())) {
+                    it.remove();
+                    modified = true;
+                }
+            }
+            return modified;
+        }
+
+        @Override
+        public boolean removeAll(final Collection<?> c) {
+            if (c == null) throw new NullPointerException();
+            boolean modified = false;
+            for (Iterator<K> it = iterator(); it.hasNext();) {
+                if (!c.contains(it.next())) {
+                    it.remove();
+                    modified = true;
+                }
+            }
+            return modified;
+        }
+
+        @Override
+        public void clear() {
+            RaftDistributedMap.this.clear();
+        }
+    }
+
+    private class KeySetIteratorWrapper implements Iterator<K> {
+        final Iterator<K> delegateIterator;
+        K lastReturned;
+
+        public KeySetIteratorWrapper(final Iterator<K> delegateIterator) {
+            this.delegateIterator = Objects.requireNonNull(delegateIterator);
+        }
+
+        @Override
+        public boolean hasNext() {
+            return delegateIterator.hasNext();
+        }
+
+        @Override
+        public K next() {
+            return lastReturned = delegateIterator.next();
+        }
+
+        @Override
+        public void remove() {
+            RaftDistributedMap.this.remove(lastReturned);
+        }
     }
 }

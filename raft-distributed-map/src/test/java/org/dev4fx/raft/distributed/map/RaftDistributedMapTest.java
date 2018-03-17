@@ -81,7 +81,13 @@ public class RaftDistributedMapTest {
         System.out.println(distributedMap1_1.toString());
         System.out.println(distributedMap2_1.toString());
 
-        distributedMap1_1.clear();
+        final Set<String> keySet = distributedMap1_1.keySet();
+
+        final List<String> retainList = Arrays.asList("MoreKey2", "MoreKey3");
+
+        keySet.retainAll(retainList);
+
+        Thread.sleep(1000);
 
         System.out.println(distributedMap0_1.toString());
         System.out.println(distributedMap1_1.toString());
