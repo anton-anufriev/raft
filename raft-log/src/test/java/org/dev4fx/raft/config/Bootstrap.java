@@ -33,7 +33,8 @@ import org.dev4fx.raft.sbe.CommandRequestDecoder;
 import org.dev4fx.raft.sbe.CommandRequestEncoder;
 import org.dev4fx.raft.sbe.MessageHeaderDecoder;
 import org.dev4fx.raft.sbe.MessageHeaderEncoder;
-import org.dev4fx.raft.state.CommandSender;
+import org.dev4fx.raft.state.CommandPublisher;
+import org.dev4fx.raft.state.DefaultCommandPublisher;
 import org.dev4fx.raft.state.LoggingStateMachine;
 import org.dev4fx.raft.transport.Publisher;
 
@@ -72,8 +73,8 @@ public class Bootstrap {
         final String commandChannel = "aeron:ipc";
         final int commandStreamId = 100;
 
-        final Publisher commandPublisher = Publisher.aeronPublisher(aeron, commandChannel, commandStreamId);
-        final CommandSender commandSender = new CommandSender(commandPublisher,
+        final Publisher aeronCommandPublisher = Publisher.aeronPublisher(aeron, commandChannel, commandStreamId);
+        final CommandPublisher commandPublisher = new DefaultCommandPublisher(aeronCommandPublisher,
                 new MessageHeaderEncoder(),
                 new CommandRequestEncoder(),
                 commandEncoderBuffer);
@@ -84,39 +85,33 @@ public class Bootstrap {
         final String raftDirectory = "/Users/anton/IdeaProjects/raft";
 
         final AtomicBoolean firstElection = new AtomicBoolean(true);
-        final IntConsumer onLeaderTransitionHandler = serverId -> {
+        final IntConsumer noOpCommandInjector = serverId -> {
             if (firstElection.getAndSet(false)) {
-                commandSender.publish(commandSource, idGen.getAsLong(), commandPayloadEncoderBuffer, 0, commandPayloadLength);
+                commandPublisher.publish(commandSource, idGen.getAsLong(), commandPayloadEncoderBuffer, 0, commandPayloadLength);
             }
         };
 
         final String serverChannel = "aeron:ipc";
-        final IntFunction<String> serverToChannel = value -> serverChannel;
+        final IntFunction<String> serverToChannel = serverId -> serverChannel;
 
         final RaftServerBuilder builder = RaftServerBuilder
                 .forAeronTransport(aeron, commandChannel, commandStreamId, serverToChannel)
-                .stateMachineFactory(serverId -> new LoggingStateMachine(serverId, new CommandRequestDecoder(), new MessageHeaderDecoder(), new StringBuilder()))
+                .stateMachineFactory(serverId -> new LoggingStateMachine(serverId, new StringBuilder()))
                 .maxAppendBatchSize(4)
-                .onLeaderTransitionHandler(onLeaderTransitionHandler);
+                .onLeaderTransitionHandler(noOpCommandInjector);
 
         final Service.Start process0 = builder.build(raftDirectory, 0, 3);
         final Service.Start process1 = builder.build(raftDirectory, 1, 3);
         final Service.Start process2 = builder.build(raftDirectory, 2, 3);
-//        final Service.Start process3 = builder.build(raftDirectory, 3, 5);
-//        final Service.Start process4 = builder.build(raftDirectory, 4, 5);
 
         final Service.Stop process0Shutdown = process0.start();
         final Service.Stop process1Shutdown = process1.start();
         final Service.Stop process2Shutdown = process2.start();
-//        final Service.Stop process3Shutdown = process3.start();
-//        final Service.Stop process4Shutdown = process4.start();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             process0Shutdown.stop();
             process1Shutdown.stop();
             process2Shutdown.stop();
-//            process3Shutdown.stop();
-//            process4Shutdown.stop();
         }));
 
         try {
@@ -125,7 +120,7 @@ public class Bootstrap {
             e.printStackTrace();
         }
 
-        commandSender.publish(commandSource, idGen.getAsLong(), commandPayloadEncoderBuffer, 0, commandPayloadLength);
+        commandPublisher.publish(commandSource, idGen.getAsLong(), commandPayloadEncoderBuffer, 0, commandPayloadLength);
 
         try {
             Thread.sleep(30000);
@@ -141,7 +136,7 @@ public class Bootstrap {
             e.printStackTrace();
         }
 
-        commandSender.publish(commandSource, idGen.getAsLong(), commandPayloadEncoderBuffer, 0, commandPayloadLength);
+        commandPublisher.publish(commandSource, idGen.getAsLong(), commandPayloadEncoderBuffer, 0, commandPayloadLength);
 
         process0Shutdown.awaitShutdown();
         process1Shutdown.awaitShutdown();

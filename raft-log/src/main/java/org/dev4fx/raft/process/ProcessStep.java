@@ -23,11 +23,39 @@
  */
 package org.dev4fx.raft.process;
 
+import java.util.Objects;
+
 public interface ProcessStep {
+    ProcessStep NO_OP = () -> false;
+
     boolean execute();
 
     default boolean finalise() {
         return !execute();
+    }
+
+    default ProcessStep then(final ProcessStep nextStep) {
+        Objects.requireNonNull(nextStep);
+        return () -> {
+            final boolean workDone = execute();
+            return workDone | nextStep.execute();
+        };
+    }
+
+    default ProcessStep thenIfWorkDone(final ProcessStep nextStep) {
+        Objects.requireNonNull(nextStep);
+        return () -> {
+            final boolean workDone = execute();
+            return workDone && nextStep.execute();
+        };
+    }
+
+    default ProcessStep thenIfWorkNotDone(final ProcessStep nextStep) {
+        Objects.requireNonNull(nextStep);
+        return () -> {
+            final boolean workDone = execute();
+            return workDone || nextStep.execute();
+        };
     }
 
     static ProcessStep finalisable(final ProcessStep step) {

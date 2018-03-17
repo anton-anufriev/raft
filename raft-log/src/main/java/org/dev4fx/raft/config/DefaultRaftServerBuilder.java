@@ -67,14 +67,14 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     };
     private static final IntFunction<? extends IdleStrategy>  DEFAULT_IDLE_STRATEGY_FACTORY = serverId -> new BackoffIdleStrategy(100L, 100L, 10L, 100L);
     private static final RegionRingFactory DEFAULT_REGION_RING_FACTORY = RegionRingFactory.forSync(RegionFactory.SYNC);
-    private static final IntFunction<? extends MessageHandler> DEFAULT_STATE_MACHINE_FACTORY = serverId -> new LoggingStateMachine(serverId, new CommandRequestDecoder(), new MessageHeaderDecoder(), new StringBuilder());
+    private static final IntFunction<? extends StateMachine> DEFAULT_STATE_MACHINE_FACTORY = serverId -> new LoggingStateMachine(serverId, new StringBuilder());
     private static final long MAX_FILE_SIZE = 64 * 16 * 1024 * 1024;
 
     private final PollerFactory commandPollerFactory;
     private final IntFunction<? extends PollerFactory> serverToPollerFactory;
     private final IntFunction<? extends Publisher> serverToPublisherFactory;
 
-    private IntFunction<? extends MessageHandler> stateMachineFactory;
+    private IntFunction<? extends StateMachine> stateMachineFactory;
     private IntConsumer onLeaderTransitionHandler = serverId -> {};
     private IntConsumer onFollowerTransitionHandler = serverId -> {};
     private int minElectionTimeoutMillis = 1100;
@@ -96,6 +96,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     private BiConsumer<? super String, ? super Exception> exceptionHandler;
     private long gracefulShutdownTimeout = 10;
     private TimeUnit gracefulShutdownTimeunit = TimeUnit.SECONDS;
+    private ProcessStep applicationProcessStep;
 
     public DefaultRaftServerBuilder(final Aeron aeron,
                                     final String commandChannel,
@@ -126,7 +127,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     }
 
     @Override
-    public RaftServerBuilder stateMachineFactory(final IntFunction<? extends MessageHandler> stateMachineFactory) {
+    public RaftServerBuilder stateMachineFactory(final IntFunction<? extends StateMachine> stateMachineFactory) {
         this.stateMachineFactory = Objects.requireNonNull(stateMachineFactory);
         return this;
     }
@@ -249,6 +250,12 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     public RaftServerBuilder gracefulShutdownTimeout(final long gracefulShutdownTimeout, final TimeUnit gracefulShutdownTimeunit) {
         this.gracefulShutdownTimeout = gracefulShutdownTimeout;
         this.gracefulShutdownTimeunit = Objects.requireNonNull(gracefulShutdownTimeunit);
+        return this;
+    }
+
+    @Override
+    public RaftServerBuilder applicationProcessStep(final ProcessStep processStep) {
+        this.applicationProcessStep = processStep;
         return this;
     }
 
@@ -441,10 +448,15 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                     processSteps.add(destinationPoller::poll);
                 });
 
+        final MessageHandler commandMessageHandler = new CommandMessageHandler(stateMachineFactory.apply(serverId));
+
         final Poller commandPoller = commandPollerFactory.create(serverMessageHandler, maxCommandsPollable);
         processSteps.add(commandPoller::poll);
         processSteps.add(serverMessageHandler);
-        processSteps.add(new CommittedLogPromoter(persistentState, volatileState, stateMachineFactory.apply(serverId), commandDecoderBuffer, maxPromotionBatchSize));
+        processSteps.add(new CommittedLogPromoter(persistentState, volatileState, commandMessageHandler, commandDecoderBuffer, maxPromotionBatchSize));
+        if (applicationProcessStep != null) {
+            processSteps.add(applicationProcessStep);
+        }
 
         final Runnable onProcessStart = serverMessageHandler::init;
         final Runnable onProcessStop = () -> {

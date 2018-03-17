@@ -30,23 +30,24 @@ import org.dev4fx.raft.transport.Publisher;
 
 import java.util.Objects;
 
-public class CommandSender {
+public class DefaultCommandPublisher implements CommandPublisher {
     private final Publisher publisher;
     private final MessageHeaderEncoder messageHeaderEncoder;
     private final CommandRequestEncoder commandRequestEncoder;
     private final MutableDirectBuffer encoderBuffer;
 
 
-    public CommandSender(final Publisher publisher,
-                         final MessageHeaderEncoder messageHeaderEncoder,
-                         final CommandRequestEncoder commandRequestEncoder,
-                         final MutableDirectBuffer encoderBuffer) {
+    public DefaultCommandPublisher(final Publisher publisher,
+                                   final MessageHeaderEncoder messageHeaderEncoder,
+                                   final CommandRequestEncoder commandRequestEncoder,
+                                   final MutableDirectBuffer encoderBuffer) {
         this.publisher = Objects.requireNonNull(publisher);
         this.messageHeaderEncoder = Objects.requireNonNull(messageHeaderEncoder);
         this.commandRequestEncoder = Objects.requireNonNull(commandRequestEncoder);
         this.encoderBuffer = Objects.requireNonNull(encoderBuffer);
     }
 
+    @Override
     public boolean publish(final int sourceId, final long sequence, final DirectBuffer buffer, final int offset, final int length) {
         final int headerLength = messageHeaderEncoder.wrap(encoderBuffer, 0)
                 .schemaId(CommandRequestEncoder.SCHEMA_ID)

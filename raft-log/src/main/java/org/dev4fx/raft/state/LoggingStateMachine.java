@@ -30,46 +30,28 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 
-public class LoggingStateMachine implements MessageHandler {
+public class LoggingStateMachine implements StateMachine {
     private final static Logger LOGGER = LoggerFactory.getLogger("SM");
 
     private final int serverId;
-    private final CommandRequestDecoder commandRequestDecoder;
-    private final MessageHeaderDecoder messageHeaderDecoder;
     private final StringBuilder stringBuilder;
 
     public LoggingStateMachine(final int serverId,
-                               final CommandRequestDecoder commandRequestDecoder,
-                               final MessageHeaderDecoder messageHeaderDecoder,
                                final StringBuilder stringBuilder) {
         this.serverId = serverId;
-        this.commandRequestDecoder = Objects.requireNonNull(commandRequestDecoder);
-        this.messageHeaderDecoder = Objects.requireNonNull(messageHeaderDecoder);
         this.stringBuilder = Objects.requireNonNull(stringBuilder);
     }
 
     @Override
-    public void onMessage(final DirectBuffer source, final int offset, final int length) {
+    public void onCommand(final int sourceId, final long sequence, final DirectBuffer buffer, final int offset, final int length) {
         stringBuilder.setLength(0);
-        messageHeaderDecoder.wrap(source, offset);
-        final int templateId = messageHeaderDecoder.templateId();
-        final int headerLenght = messageHeaderDecoder.encodedLength();
-        switch (templateId) {
-            case CommandRequestDecoder.TEMPLATE_ID :
-                commandRequestDecoder.wrap(source,headerLenght + offset,
-                        CommandRequestDecoder.BLOCK_LENGTH,
-                        CommandRequestDecoder.SCHEMA_VERSION);
-                stringBuilder
-                        .append("Command: sourceId=")
-                        .append(commandRequestDecoder.sourceId())
-                        .append(", sequence=")
-                        .append(commandRequestDecoder.sequence())
-                        .append(", payload=");
-
-                stringBuilder.append(commandRequestDecoder.buffer().getStringAscii(commandRequestDecoder.limit()));
-                LOGGER.info("{}", stringBuilder);
-
-                break;
-        }
+        stringBuilder
+                .append("Command: sourceId=")
+                .append(sourceId)
+                .append(", sequence=")
+                .append(sequence)
+                .append(", payload=")
+                .append(buffer.getStringWithoutLengthAscii(offset, length));
+        LOGGER.info("{}", stringBuilder);
     }
 }

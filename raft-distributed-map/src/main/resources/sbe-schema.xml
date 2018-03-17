@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sbe:messageSchema xmlns:sbe="http://fixprotocol.io/2016/sbe"
+                   package="org.dev4fx.raft.dmap.sbe"
+                   id="1"
+                   version="0"
+                   semanticVersion="1.0"
+                   description="Distributed map schema"
+                   byteOrder="littleEndian">
+    <types>
+        <composite name="messageHeader" description="Message identifiers and length of message root">
+            <type name="blockLength" primitiveType="uint16"/>
+            <type name="templateId" primitiveType="uint16"/>
+            <type name="schemaId" primitiveType="uint16"/>
+            <type name="version" primitiveType="uint16"/>
+            <type name="mapId" primitiveType="uint16"/>
+        </composite>
+        <composite name="groupSizeEncoding" description="Repeating group dimensions">
+            <type name="blockLength" primitiveType="uint16"/>
+            <type name="numInGroup" primitiveType="uint16"/>
+        </composite>
+        <composite name="varStringEncoding">
+            <type name="length" primitiveType="uint32" maxValue="1073741824"/>
+            <type name="varData" primitiveType="uint8" length="0" characterEncoding="UTF-8"/>
+        </composite>
+        <composite name="varDataEncoding">
+            <type name="length" primitiveType="uint32" maxValue="1073741824"/>
+            <type name="varData" primitiveType="uint8" length="0"/>
+        </composite>
+    </types>
+    <sbe:message id="1" name="PutCommand" description="Put Command">
+        <data name="key" id="2" type="varDataEncoding"/>
+        <data name="value" id="3" type="varDataEncoding"/>
+    </sbe:message>
+    <sbe:message id="2" name="PutAllCommand" description="Put All Command">
+        <group name="entries" id="4" dimensionType="groupSizeEncoding">
+            <data name="key" id="2" type="varDataEncoding"/>
+            <data name="value" id="3" type="varDataEncoding"/>
+        </group>
+    </sbe:message>
+    <sbe:message id="3" name="RemoveCommand" description="Remove Command">
+        <data name="key" id="2" type="varDataEncoding"/>
+    </sbe:message>
+    <sbe:message id="4" name="ClearCommand" description="Clear Command">
+    </sbe:message>
+
+</sbe:messageSchema>

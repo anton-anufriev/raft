@@ -40,25 +40,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 
 @RunWith(MockitoJUnitRunner.class)
-public class CommandSenderTest {
+public class DefaultCommandPublisherTest {
     @Mock
     private Publisher publisher;
     private MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
     private CommandRequestEncoder commandRequestEncoder = new CommandRequestEncoder();
     private MutableDirectBuffer encoderBuffer = new UnsafeBuffer(ByteBuffer.allocate(512));
 
-    private CommandSender commandSender;
+    private CommandPublisher commandPublisher;
 
     @Before
     public void setUp() throws Exception {
-        commandSender = new CommandSender(publisher, messageHeaderEncoder,
+        commandPublisher = new DefaultCommandPublisher(publisher, messageHeaderEncoder,
                 commandRequestEncoder, encoderBuffer);
     }
 
     @Test
     public void publish() throws Exception {
         final UnsafeBuffer command = new UnsafeBuffer("test command".getBytes());
-        commandSender.publish(12, 234, command, 0, command.capacity());
+        commandPublisher.publish(12, 234, command, 0, command.capacity());
 
         verify(publisher).publish(encoderBuffer, 0, 34);
 

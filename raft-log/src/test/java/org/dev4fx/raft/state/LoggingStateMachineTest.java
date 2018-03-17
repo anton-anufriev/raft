@@ -18,12 +18,14 @@ public class LoggingStateMachineTest {
     private StringBuilder stringBuilder = new StringBuilder();
     private MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
     private CommandRequestEncoder encoder = new CommandRequestEncoder();
-    private LoggingStateMachine stateMachine;
+    private StateMachine stateMachine;
+    private CommandMessageHandler commandMessageHandler;
 
     @Before
     public void setUp() throws Exception {
-        stateMachine = new LoggingStateMachine(2,
-                new CommandRequestDecoder(), new MessageHeaderDecoder(), stringBuilder);
+        stateMachine = new LoggingStateMachine(2, stringBuilder);
+        commandMessageHandler = new CommandMessageHandler(stateMachine);
+
     }
 
     @Test
@@ -43,7 +45,7 @@ public class LoggingStateMachineTest {
                 .putPayload(commandBytes, 0, commandBytes.length)
                 .encodedLength();
         //when
-        stateMachine.onMessage(directBuffer, 0, headerLength + messageLength);
+        commandMessageHandler.onMessage(directBuffer, 0, headerLength + messageLength);
 
         //then
         assertThat(stringBuilder).contains("sourceId=" + 4)

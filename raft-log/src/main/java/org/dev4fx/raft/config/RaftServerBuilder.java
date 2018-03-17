@@ -26,8 +26,9 @@ package org.dev4fx.raft.config;
 import io.aeron.Aeron;
 import org.agrona.concurrent.IdleStrategy;
 import org.dev4fx.raft.mmap.impl.RegionRingFactory;
+import org.dev4fx.raft.process.ProcessStep;
 import org.dev4fx.raft.process.Service;
-import org.dev4fx.raft.state.MessageHandler;
+import org.dev4fx.raft.state.StateMachine;
 import org.dev4fx.raft.timer.Clock;
 import org.dev4fx.raft.transport.PollerFactory;
 import org.dev4fx.raft.transport.Publisher;
@@ -39,7 +40,7 @@ import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 
 public interface RaftServerBuilder {
-    RaftServerBuilder stateMachineFactory(final IntFunction<? extends MessageHandler> stateMachineHandler);
+    RaftServerBuilder stateMachineFactory(final IntFunction<? extends StateMachine> stateMachineHandler);
     RaftServerBuilder onLeaderTransitionHandler(final IntConsumer onLeaderTransitionHandler);
     RaftServerBuilder onFollowerTransitionHandler(final IntConsumer onFollowerTransitionHandler);
     RaftServerBuilder minElectionTimeoutMillis(final int minElectionTimeoutMillis);
@@ -60,6 +61,7 @@ public interface RaftServerBuilder {
     RaftServerBuilder idleStrategyFactory(final IntFunction<? extends IdleStrategy> idleStrategyFactory);
     RaftServerBuilder exceptionHandler(final BiConsumer<? super String, ? super Exception> exceptionHandler);
     RaftServerBuilder gracefulShutdownTimeout(final long gracefulShutdownTimeout, final TimeUnit gracefulShutdownTimeunit);
+    RaftServerBuilder applicationProcessStep(ProcessStep processStep);
 
     Service.Start build(String logDirectory, int serverId, int clusterSize) throws IOException;
 
