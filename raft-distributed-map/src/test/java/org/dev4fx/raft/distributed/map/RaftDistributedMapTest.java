@@ -83,9 +83,11 @@ public class RaftDistributedMapTest {
 
         final Set<String> keySet = distributedMap1_1.keySet();
 
-        final List<String> retainList = Arrays.asList("MoreKey2", "MoreKey3");
+        final List<String> removeList = Arrays.asList("MoreKey2", "MoreKey3");
+        final List<String> retailList = Arrays.asList("AnotherTestKey2", "MoreKey1");
 
-        keySet.retainAll(retainList);
+        keySet.retainAll(removeList);
+        keySet.removeAll(retailList);
 
         Thread.sleep(1000);
 
