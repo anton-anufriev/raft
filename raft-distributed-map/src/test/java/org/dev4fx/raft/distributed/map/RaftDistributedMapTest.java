@@ -1,6 +1,31 @@
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2018 hover-raft (tools4j), Anton Anufriev, Marco Terzer
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 package org.dev4fx.raft.distributed.map;
 
 import io.aeron.Aeron;
+import io.aeron.Image;
+import io.aeron.Subscription;
 import io.aeron.driver.MediaDriver;
 import org.agrona.DirectBuffer;
 import org.agrona.collections.Int2ObjectHashMap;
@@ -9,7 +34,6 @@ import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.collections.MutableLong;
 import org.agrona.concurrent.ManyToOneConcurrentArrayQueue;
 import org.agrona.concurrent.UnsafeBuffer;
-import org.dev4fx.raft.config.Bootstrap;
 import org.dev4fx.raft.config.RaftServerBuilder;
 import org.dev4fx.raft.process.MutableProcessStepChain;
 import org.dev4fx.raft.process.ProcessStep;
@@ -18,20 +42,15 @@ import org.dev4fx.raft.sbe.CommandRequestEncoder;
 import org.dev4fx.raft.sbe.MessageHeaderEncoder;
 import org.dev4fx.raft.state.CommandPublisher;
 import org.dev4fx.raft.state.DefaultCommandPublisher;
-import org.dev4fx.raft.state.LoggingStateMachine;
 import org.dev4fx.raft.state.StateMachine;
 import org.dev4fx.raft.transport.Publisher;
-import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.*;
-
-import static org.junit.Assert.*;
 
 public class RaftDistributedMapTest {
 
@@ -40,8 +59,8 @@ public class RaftDistributedMapTest {
         final MediaDriver driver = MediaDriver.launchEmbedded();
         final Aeron.Context ctx = new Aeron.Context()
                 .driverTimeoutMs(1000000)
-                .availableImageHandler(Bootstrap::printAvailableImage)
-                .unavailableImageHandler(Bootstrap::printUnavailableImage);
+                .availableImageHandler(RaftDistributedMapTest::printAvailableImage)
+                .unavailableImageHandler(RaftDistributedMapTest::printUnavailableImage);
 
         ctx.aeronDirectoryName(driver.aeronDirectoryName());
 
@@ -195,4 +214,26 @@ public class RaftDistributedMapTest {
 
         return map;
     }
+
+    public static void printAvailableImage(final Image image)
+    {
+        final Subscription subscription = image.subscription();
+        System.out.println(String.format(
+                "Available image on %s streamId=%d sessionId=%d from %s",
+                subscription.channel(), subscription.streamId(), image.sessionId(), image.sourceIdentity()));
+    }
+
+    /**
+     * Print the information for an unavailable image to stdout.
+     *
+     * @param image that has gone inactive
+     */
+    public static void printUnavailableImage(final Image image)
+    {
+        final Subscription subscription = image.subscription();
+        System.out.println(String.format(
+                "Unavailable image on %s streamId=%d sessionId=%d",
+                subscription.channel(), subscription.streamId(), image.sessionId()));
+    }
+
 }
