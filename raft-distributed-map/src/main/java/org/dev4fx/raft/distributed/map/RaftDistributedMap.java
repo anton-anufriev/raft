@@ -2,7 +2,6 @@ package org.dev4fx.raft.distributed.map;
 
 import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -18,10 +17,6 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
         this.mapId = mapId;
         this.map = Objects.requireNonNull(map);
         this.commandQueue = Objects.requireNonNull(commandQueue);
-    }
-
-    public RaftDistributedMap(final int mapId, final Queue<? super MapCommand> commandQueue) {
-        this(mapId, new ConcurrentHashMap<>(), commandQueue);
     }
 
     public int mapId() {
@@ -85,16 +80,19 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
         getValue(nonBlockingClear(), "clear");
     }
 
+    //FIXME support elements removal via raft
     @Override
     public Set<K> keySet() {
         return map.keySet();
     }
 
+    //FIXME support elements removal via raft
     @Override
     public Collection<V> values() {
         return map.values();
     }
 
+    //FIXME support elements removal via raft
     @Override
     public Set<Entry<K, V>> entrySet() {
         return map.entrySet();
