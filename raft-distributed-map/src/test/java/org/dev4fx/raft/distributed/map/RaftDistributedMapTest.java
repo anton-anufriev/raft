@@ -80,6 +80,13 @@ public class RaftDistributedMapTest {
         System.out.println(distributedMap0_1.toString());
         System.out.println(distributedMap1_1.toString());
         System.out.println(distributedMap2_1.toString());
+
+        distributedMap1_1.clear();
+
+        System.out.println(distributedMap0_1.toString());
+        System.out.println(distributedMap1_1.toString());
+        System.out.println(distributedMap2_1.toString());
+
     }
 
     public static DistributedMap<String, String> createServer(final Aeron aeron, final String commandChannel, final int commandStreamId, final int serverId, final int clusterSize) throws IOException {
