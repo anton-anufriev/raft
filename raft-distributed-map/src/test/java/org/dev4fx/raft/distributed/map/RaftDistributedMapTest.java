@@ -93,9 +93,9 @@ public class RaftDistributedMapTest {
 
         distributedMap2_1.putAll(moreEntries);
 
-//        Thread.sleep(5000);
+        Thread.sleep(0);
 
-
+        System.out.println("================= AFTER PUT ALL (1) ===================");
         System.out.println(distributedMap0_1.toString());
         System.out.println(distributedMap1_1.toString());
         System.out.println(distributedMap2_1.toString());
@@ -106,10 +106,29 @@ public class RaftDistributedMapTest {
         final List<String> retailList = Arrays.asList("AnotherTestKey2", "MoreKey1");
 
         keySet.retainAll(removeList);
+
+        Thread.sleep(0);
+
+        System.out.println("================= AFTER RETAIN ALL (2) ===================");
+        System.out.println(distributedMap0_1.toString());
+        System.out.println(distributedMap1_1.toString());
+        System.out.println(distributedMap2_1.toString());
+
         keySet.removeAll(retailList);
 
-        Thread.sleep(1000);
+        Thread.sleep(0);
 
+        System.out.println("================= AFTER REMOVE ALL (3) ===================");
+        System.out.println(distributedMap0_1.toString());
+        System.out.println(distributedMap1_1.toString());
+        System.out.println(distributedMap2_1.toString());
+
+        final Set<Map.Entry<String, String>> entrySet = distributedMap2_1.entrySet();
+
+        entrySet.removeIf(entry -> entry.getKey().equals("MoreKey1"));
+
+        Thread.sleep(0);
+        System.out.println("================= AFTER REMOVE BY ENTRY SET ITERATOR (4) ===================");
         System.out.println(distributedMap0_1.toString());
         System.out.println(distributedMap1_1.toString());
         System.out.println(distributedMap2_1.toString());

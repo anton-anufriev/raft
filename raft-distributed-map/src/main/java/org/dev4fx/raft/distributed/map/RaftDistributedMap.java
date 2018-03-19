@@ -28,13 +28,18 @@ import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class RaftDistributedMap<K extends Serializable,V extends Serializable> implements DistributedMap<K, V> {
     private final int mapId;
     private final ConcurrentMap<K, V> map;
     private final Queue<? super MapCommand<K,V>> commandQueue;
 
-    private KeySetWrapper keySet;
+    private SetWrapper<K> keySet;
+    private SetWrapper<Entry<K, V>> entrySet;
+    private ValuesWrapper values;
 
     public RaftDistributedMap(final int mapId,
                               final ConcurrentMap<K, V> map,
@@ -107,20 +112,36 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
 
     @Override
     public Set<K> keySet() {
-        KeySetWrapper ks;
-        return (ks = keySet) != null ? ks : (keySet = new KeySetWrapper(map.keySet()));
+        final SetWrapper<K> ks = keySet;
+        if (ks == null) {
+            final Consumer<K> remover = RaftDistributedMap.this::remove;
+            final Set<K> delegateKeySet = map.keySet();
+            return keySet = new SetWrapper<>(delegateKeySet, () -> new IteratorWrapper<>(delegateKeySet.iterator(), k-> k, remover));
+        } else {
+            return ks;
+        }
     }
 
-    //FIXME support elements removal via raft
     @Override
     public Collection<V> values() {
-        return map.values();
+        final ValuesWrapper valuesWrapper = values;
+        if (valuesWrapper == null) {
+            return values = new ValuesWrapper();
+        } else {
+            return valuesWrapper;
+        }
     }
 
-    //FIXME support elements removal via raft
     @Override
     public Set<Entry<K, V>> entrySet() {
-        return map.entrySet();
+        final SetWrapper<Entry<K, V>> es = entrySet;
+        if (es == null) {
+            final Consumer<Entry<K, V>> remover = entry -> RaftDistributedMap.this.remove(entry.getKey());
+            final Set<Entry<K, V>> delegateEntrySet = map.entrySet();
+            return entrySet = new SetWrapper<>(delegateEntrySet, () -> new IteratorWrapper<>(delegateEntrySet.iterator(), k -> k, remover));
+        } else {
+            return es;
+        }
     }
 
     @Override
@@ -156,11 +177,13 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
         return map.toString();
     }
 
-    private class KeySetWrapper implements Set<K> {
-        final Set<K> delegateKeySet;
+    private class SetWrapper<T> implements Set<T> {
+        final Set<T> delegateKeySet;
+        final Supplier<? extends Iterator<T>> iteratorFactory;
 
-        public KeySetWrapper(final Set<K> delegateKeySet) {
+        public SetWrapper(final Set<T> delegateKeySet, final Supplier<? extends Iterator<T>> iteratorFactory) {
             this.delegateKeySet = Objects.requireNonNull(delegateKeySet);
+            this.iteratorFactory = Objects.requireNonNull(iteratorFactory);
         }
 
         @Override
@@ -179,8 +202,8 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
         }
 
         @Override
-        public Iterator<K> iterator() {
-            return new KeySetIteratorWrapper(delegateKeySet.iterator());
+        public Iterator<T> iterator() {
+            return iteratorFactory.get();
         }
 
         @Override
@@ -194,7 +217,7 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
         }
 
         @Override
-        public boolean add(final K k) {
+        public boolean add(final T k) {
             return delegateKeySet.add(k);
         }
 
@@ -209,7 +232,7 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
         }
 
         @Override
-        public boolean addAll(final Collection<? extends K> c) {
+        public boolean addAll(final Collection<? extends T> c) {
             return delegateKeySet.addAll(c);
         }
 
@@ -217,7 +240,7 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
         public boolean retainAll(final Collection<?> c) {
             if (c == null) throw new NullPointerException();
             boolean modified = false;
-            for (Iterator<K> it = iterator(); it.hasNext();) {
+            for (Iterator<T> it = iterator(); it.hasNext();) {
                 if (c.contains(it.next())) {
                     it.remove();
                     modified = true;
@@ -230,7 +253,7 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
         public boolean removeAll(final Collection<?> c) {
             if (c == null) throw new NullPointerException();
             boolean modified = false;
-            for (Iterator<K> it = iterator(); it.hasNext();) {
+            for (Iterator<T> it = iterator(); it.hasNext();) {
                 if (!c.contains(it.next())) {
                     it.remove();
                     modified = true;
@@ -245,12 +268,109 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
         }
     }
 
-    private class KeySetIteratorWrapper implements Iterator<K> {
-        final Iterator<K> delegateIterator;
-        K lastReturned;
+    private class ValuesWrapper implements Collection<V> {
+        private final Consumer<Entry<K, V>> remover = entry -> RaftDistributedMap.this.remove(entry.getKey());
 
-        public KeySetIteratorWrapper(final Iterator<K> delegateIterator) {
+        @Override
+        public int size() {
+            return map.size();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return map.isEmpty();
+        }
+
+        @Override
+        public boolean contains(final Object o) {
+            return map.containsValue(o);
+        }
+
+        @Override
+        public Iterator<V> iterator() {
+            return new IteratorWrapper<>(map.entrySet().iterator(), Entry::getValue, remover);
+        }
+
+        @Override
+        public Object[] toArray() {
+            return map.values().toArray();
+        }
+
+        @Override
+        public <T> T[] toArray(final T[] a) {
+            return map.values().toArray(a);
+        }
+
+        @Override
+        public boolean add(final V v) {
+            return map.values().add(v);
+        }
+
+        @Override
+        public boolean remove(final Object o) {
+            if (o != null) {
+                for (Iterator<V> it = iterator(); it.hasNext();) {
+                    if (o.equals(it.next())) {
+                        it.remove();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public boolean containsAll(final Collection<?> c) {
+            return map.values().containsAll(c);
+        }
+
+        @Override
+        public boolean addAll(final Collection<? extends V> c) {
+            return map.values().addAll(c);
+        }
+
+        @Override
+        public boolean removeAll(final Collection<?> c) {
+            if (c == null) throw new NullPointerException();
+            boolean modified = false;
+            for (Iterator<V> it = iterator(); it.hasNext();) {
+                if (!c.contains(it.next())) {
+                    it.remove();
+                    modified = true;
+                }
+            }
+            return modified;
+        }
+
+        @Override
+        public boolean retainAll(final Collection<?> c) {
+            if (c == null) throw new NullPointerException();
+            boolean modified = false;
+            for (Iterator<V> it = iterator(); it.hasNext();) {
+                if (c.contains(it.next())) {
+                    it.remove();
+                    modified = true;
+                }
+            }
+            return modified;
+        }
+
+        @Override
+        public void clear() {
+            map.clear();
+        }
+    }
+
+    private class IteratorWrapper<T,V> implements Iterator<V> {
+        final Iterator<T> delegateIterator;
+        final Function<T, V> valueExtractor;
+        final Consumer<T> remover;
+        T lastReturned;
+
+        public IteratorWrapper(final Iterator<T> delegateIterator, final Function<T, V> valueExtractor, final Consumer<T> remover) {
             this.delegateIterator = Objects.requireNonNull(delegateIterator);
+            this.valueExtractor = Objects.requireNonNull(valueExtractor);
+            this.remover = Objects.requireNonNull(remover);
         }
 
         @Override
@@ -259,13 +379,14 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
         }
 
         @Override
-        public K next() {
-            return lastReturned = delegateIterator.next();
+        public V next() {
+            lastReturned = delegateIterator.next();
+            return valueExtractor.apply(lastReturned);
         }
 
         @Override
         public void remove() {
-            RaftDistributedMap.this.remove(lastReturned);
+            remover.accept(lastReturned);
         }
     }
 }
