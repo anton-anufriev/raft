@@ -61,7 +61,7 @@ public interface RaftServerBuilder {
     RaftServerBuilder idleStrategyFactory(final IntFunction<? extends IdleStrategy> idleStrategyFactory);
     RaftServerBuilder exceptionHandler(final BiConsumer<? super String, ? super Exception> exceptionHandler);
     RaftServerBuilder gracefulShutdownTimeout(final long gracefulShutdownTimeout, final TimeUnit gracefulShutdownTimeunit);
-    RaftServerBuilder applicationProcessStep(ProcessStep processStep);
+    RaftServerBuilder applicationProcessStepFactory(IntFunction<? extends ProcessStep> processStepFactory);
 
     Service.Start build(String logDirectory, int serverId, int clusterSize) throws IOException;
 

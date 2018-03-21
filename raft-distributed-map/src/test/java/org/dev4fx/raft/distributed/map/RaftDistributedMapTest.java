@@ -180,7 +180,7 @@ public class RaftDistributedMapTest {
                 .forAeronTransport(aeron, commandChannel, commandStreamId, serverToChannel)
                 .maxAppendBatchSize(4)
                 .stateMachineFactory(serverId1 -> stateMachine)
-                .applicationProcessStep(pollerChain.getOrNull());
+                .applicationProcessStepFactory(serverId1 -> pollerChain.getOrNull());
 
         final String raftDirectory = "/Users/anton/IdeaProjects/distMap";
 

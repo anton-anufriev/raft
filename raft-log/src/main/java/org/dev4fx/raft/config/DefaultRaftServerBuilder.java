@@ -96,7 +96,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     private BiConsumer<? super String, ? super Exception> exceptionHandler;
     private long gracefulShutdownTimeout = 10;
     private TimeUnit gracefulShutdownTimeunit = TimeUnit.SECONDS;
-    private ProcessStep applicationProcessStep;
+    private IntFunction<? extends ProcessStep> applicationProcessStepFactory;
 
     public DefaultRaftServerBuilder(final Aeron aeron,
                                     final String commandChannel,
@@ -254,8 +254,8 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     }
 
     @Override
-    public RaftServerBuilder applicationProcessStep(final ProcessStep processStep) {
-        this.applicationProcessStep = processStep;
+    public RaftServerBuilder applicationProcessStepFactory(final IntFunction<? extends ProcessStep> processStepFactory) {
+        this.applicationProcessStepFactory = processStepFactory;
         return this;
     }
 
@@ -454,8 +454,8 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
         processSteps.add(commandPoller::poll);
         processSteps.add(serverMessageHandler);
         processSteps.add(new CommittedLogPromoter(persistentState, volatileState, commandMessageHandler, commandDecoderBuffer, maxPromotionBatchSize));
-        if (applicationProcessStep != null) {
-            processSteps.add(applicationProcessStep);
+        if (applicationProcessStepFactory != null) {
+            processSteps.add(applicationProcessStepFactory.apply(serverId));
         }
 
         final Runnable onProcessStart = serverMessageHandler::init;
