@@ -21,8 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.out;
 
+import org.dev4fx.raft.distributed.map.command.Command;
+import org.dev4fx.raft.distributed.map.command.CommandHandler;
 import org.dev4fx.raft.process.ProcessStep;
 
 import java.io.Serializable;
@@ -31,29 +33,29 @@ import java.util.Queue;
 import java.util.function.LongSupplier;
 import java.util.function.ObjLongConsumer;
 
-public class MapCommandPoller<K extends Serializable, V extends Serializable> implements ProcessStep {
-    private final Queue<? extends MapCommand<K, V>> commandsQueue;
-    private final ObjLongConsumer<? super MapCommand<K, V>> currentCommands;
+public class CommandPoller<K extends Serializable, V extends Serializable> implements ProcessStep {
+    private final Queue<? extends Command<K, V>> commandQueue;
+    private final ObjLongConsumer<? super Command<K, V>> inflightCommands;
     private final LongSupplier newSequenceGen;
-    private final MapCommandHandler<K, V> encodingMapCommandHandler;
+    private final CommandHandler<K, V> encodingCommandHandler;
 
-    public MapCommandPoller(final Queue<? extends MapCommand<K, V>> commandsQueue,
-                            final ObjLongConsumer<? super MapCommand<K, V>> currentCommands,
-                            final LongSupplier newSequenceGen,
-                            final MapCommandHandler<K, V> encodingMapCommandHandler) {
-        this.commandsQueue = Objects.requireNonNull(commandsQueue);
-        this.currentCommands = Objects.requireNonNull(currentCommands);
+    public CommandPoller(final Queue<? extends Command<K, V>> commandQueue,
+                         final ObjLongConsumer<? super Command<K, V>> inflightCommands,
+                         final LongSupplier newSequenceGen,
+                         final CommandHandler<K, V> encodingCommandHandler) {
+        this.commandQueue = Objects.requireNonNull(commandQueue);
+        this.inflightCommands = Objects.requireNonNull(inflightCommands);
         this.newSequenceGen = Objects.requireNonNull(newSequenceGen);
-        this.encodingMapCommandHandler = Objects.requireNonNull(encodingMapCommandHandler);
+        this.encodingCommandHandler = Objects.requireNonNull(encodingCommandHandler);
     }
 
     @Override
     public boolean execute() {
-        final MapCommand<K, V> command = commandsQueue.poll();
+        final Command<K, V> command = commandQueue.poll();
         if (command != null) {
             final long newSequence = newSequenceGen.getAsLong();
-            command.accept(newSequence, encodingMapCommandHandler);
-            currentCommands.accept(command, newSequence);
+            command.accept(newSequence, encodingCommandHandler);
+            inflightCommands.accept(command, newSequence);
             return true;
         }
         return false;

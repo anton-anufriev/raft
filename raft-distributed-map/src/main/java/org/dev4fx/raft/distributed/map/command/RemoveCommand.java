@@ -21,30 +21,38 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.command;
 
-import org.agrona.DirectBuffer;
-import org.agrona.collections.Long2LongHashMap;
-import org.dev4fx.raft.state.StateMachine;
-
+import java.io.Serializable;
 import java.util.Objects;
 
-public class DeduplicateStateMachine implements StateMachine {
-    private final Long2LongHashMap lastReceivedSourceSequences;
-    private final StateMachine delegateStateMachine;
+public class RemoveCommand<K extends Serializable, V extends Serializable> implements Command<K, V> {
+    private final int mapId;
+    private final K key;
+    private final FutureResult<? super V> futureResult;
 
-    public DeduplicateStateMachine(final StateMachine delegateStateMachine,
-                                   final Long2LongHashMap lastReceivedSourceSequences) {
-        this.lastReceivedSourceSequences = Objects.requireNonNull(lastReceivedSourceSequences);
-        this.delegateStateMachine = Objects.requireNonNull(delegateStateMachine);
+    public RemoveCommand(final int mapId,
+                      final K key,
+                      final FutureResult<? super V> futureResult) {
+        this.mapId = mapId;
+        this.key = Objects.requireNonNull(key);
+        this.futureResult = Objects.requireNonNull(futureResult);
+    }
+
+    public int mapId() {
+        return mapId;
+    }
+
+    public K key() {
+        return key;
+    }
+
+    public void complete(final V result) {
+        futureResult.accept(result);
     }
 
     @Override
-    public void onCommand(final int sourceId, final long sequence, final DirectBuffer buffer, final int offset, final int length) {
-        final long lastReceivedSourceSequence = lastReceivedSourceSequences.get(sourceId);
-        if (sequence > lastReceivedSourceSequence) {
-            delegateStateMachine.onCommand(sourceId, sequence, buffer, offset, length);
-            lastReceivedSourceSequences.put(sourceId, sequence);
-        }
+    public void accept(final long sequence, final CommandHandler<K, V> commandHandler) {
+        commandHandler.onCommand(sequence, this);
     }
 }

@@ -21,31 +21,30 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.in;
 
-import java.io.Serializable;
+import org.agrona.DirectBuffer;
+import org.agrona.collections.Long2LongHashMap;
+import org.dev4fx.raft.state.StateMachine;
+
 import java.util.Objects;
 
-public class ClearCommand<K extends Serializable, V extends Serializable> implements MapCommand<K, V> {
-    private final int mapId;
-    private final FutureResult<Void> futureResult;
+public class DeduplicatingStateMachine implements StateMachine {
+    private final Long2LongHashMap lastReceivedSourceSequences;
+    private final StateMachine delegateStateMachine;
 
-    public ClearCommand(final int mapId,
-                        final FutureResult<Void> futureResult) {
-        this.mapId = mapId;
-        this.futureResult = Objects.requireNonNull(futureResult);
-    }
-
-    public int mapId() {
-        return mapId;
-    }
-
-    public void setResult() {
-        futureResult.accept(null);
+    public DeduplicatingStateMachine(final StateMachine delegateStateMachine,
+                                     final Long2LongHashMap lastReceivedSourceSequences) {
+        this.lastReceivedSourceSequences = Objects.requireNonNull(lastReceivedSourceSequences);
+        this.delegateStateMachine = Objects.requireNonNull(delegateStateMachine);
     }
 
     @Override
-    public void accept(final long sequence, final MapCommandHandler<K, V> commandHandler) {
-        commandHandler.onCommand(sequence, this);
+    public void onCommand(final int sourceId, final long sequence, final DirectBuffer buffer, final int offset, final int length) {
+        final long lastReceivedSourceSequence = lastReceivedSourceSequences.get(sourceId);
+        if (sequence > lastReceivedSourceSequence) {
+            delegateStateMachine.onCommand(sourceId, sequence, buffer, offset, length);
+            lastReceivedSourceSequences.put(sourceId, sequence);
+        }
     }
 }

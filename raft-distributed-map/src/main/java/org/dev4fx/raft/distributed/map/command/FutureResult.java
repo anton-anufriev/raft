@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.command;
 
 import java.util.concurrent.*;
 import java.util.function.Consumer;

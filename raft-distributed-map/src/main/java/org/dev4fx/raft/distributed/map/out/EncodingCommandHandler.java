@@ -21,9 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.out;
 
 import org.agrona.MutableDirectBuffer;
+import org.dev4fx.raft.distributed.map.codec.Serialiser;
+import org.dev4fx.raft.distributed.map.command.*;
 import org.dev4fx.raft.dmap.sbe.*;
 import org.dev4fx.raft.state.CommandPublisher;
 
@@ -31,7 +33,7 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
 
-public class EncodingMapCommandHandler<K extends Serializable, V extends Serializable> implements MapCommandHandler<K, V> {
+public class EncodingCommandHandler<K extends Serializable, V extends Serializable> implements CommandHandler<K, V> {
     private final int sourceId;
     private final MutableDirectBuffer encodingBuffer;
     private final MutableDirectBuffer entryEncodingBuffer;
@@ -45,12 +47,12 @@ public class EncodingMapCommandHandler<K extends Serializable, V extends Seriali
     private final RemoveCommandEncoder removeCommandEncoder = new RemoveCommandEncoder();
     private final ClearCommandEncoder clearCommandEncoder = new ClearCommandEncoder();
 
-    public EncodingMapCommandHandler(final int sourceId,
-                                     final MutableDirectBuffer encodingBuffer,
-                                     final MutableDirectBuffer entryEncodingBuffer,
-                                     final Serialiser<K> keySerialiser,
-                                     final Serialiser<V> valueSerialiser,
-                                     final CommandPublisher commandPublisher) {
+    public EncodingCommandHandler(final int sourceId,
+                                  final MutableDirectBuffer encodingBuffer,
+                                  final MutableDirectBuffer entryEncodingBuffer,
+                                  final Serialiser<K> keySerialiser,
+                                  final Serialiser<V> valueSerialiser,
+                                  final CommandPublisher commandPublisher) {
         this.sourceId = sourceId;
         this.encodingBuffer = Objects.requireNonNull(encodingBuffer);
         this.entryEncodingBuffer = Objects.requireNonNull(entryEncodingBuffer);

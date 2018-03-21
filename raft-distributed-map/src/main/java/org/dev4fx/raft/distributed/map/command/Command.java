@@ -21,13 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.command;
 
 import java.io.Serializable;
 
-public interface MapCommandHandler<K extends Serializable, V extends Serializable> {
-    default void onCommand(final long sequence, final PutCommand<K, V> putCommand) {}
-    default void onCommand(final long sequence, final RemoveCommand<K, V> removeCommand) {};
-    default void onCommand(final long sequence, final PutAllCommand<K, V> putAllCommand) {};
-    default void onCommand(final long sequence, final ClearCommand clearCommand) {};
+public interface Command<K extends Serializable, V extends Serializable> {
+    void accept(long sequence, CommandHandler<K, V> commandHandler);
 }

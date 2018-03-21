@@ -35,6 +35,15 @@ import org.agrona.collections.MutableLong;
 import org.agrona.concurrent.ManyToOneConcurrentArrayQueue;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.dev4fx.raft.config.RaftServerBuilder;
+import org.dev4fx.raft.distributed.map.codec.Deserialiser;
+import org.dev4fx.raft.distributed.map.codec.Serialiser;
+import org.dev4fx.raft.distributed.map.command.Command;
+import org.dev4fx.raft.distributed.map.command.CommandHandler;
+import org.dev4fx.raft.distributed.map.in.DecodingStateMachine;
+import org.dev4fx.raft.distributed.map.in.DeduplicatingStateMachine;
+import org.dev4fx.raft.distributed.map.in.RoutingStateMachine;
+import org.dev4fx.raft.distributed.map.out.CommandPoller;
+import org.dev4fx.raft.distributed.map.out.EncodingCommandHandler;
 import org.dev4fx.raft.process.MutableProcessStepChain;
 import org.dev4fx.raft.process.ProcessStep;
 import org.dev4fx.raft.process.Service;
@@ -159,7 +168,7 @@ public class RaftDistributedMapTest {
 
         final Long2LongHashMap lastReceivedSequences = new Long2LongHashMap(-1);
 
-        final StateMachine stateMachine = new DeduplicateStateMachine(
+        final StateMachine stateMachine = new DeduplicatingStateMachine(
                 new RoutingStateMachine(mapStateMachines::get),
                 lastReceivedSequences
         );
@@ -188,21 +197,21 @@ public class RaftDistributedMapTest {
                                              final ObjIntConsumer<StateMachine> stateMachineHandler,
                                              final CommandPublisher commandPublisher) {
         final ConcurrentMap<String, String> concurrentMap = new ConcurrentHashMap<>();
-        final Queue<MapCommand<String, String>> mapCommandQueue = new ManyToOneConcurrentArrayQueue<>(100);
+        final Queue<Command<String, String>> commandQueue = new ManyToOneConcurrentArrayQueue<>(100);
 
-        final RaftDistributedMap<String, String> map = new RaftDistributedMap<>(
+        final UpdateStreamliningMap<String, String> map = new UpdateStreamliningMap<>(
                 mapId,
                 concurrentMap,
-                mapCommandQueue);
+                commandQueue);
 
         final UnsafeBuffer encodingBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(4096));
         final UnsafeBuffer entryEncodingBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(4096));
 
         final Serialiser<String> stringSerialiser = (value, buffer, offset) -> buffer.putStringWithoutLengthAscii(offset, value);
         final Deserialiser<String> stringDeserialiser = DirectBuffer::getStringWithoutLengthAscii;
-        MapCommand<String, String> noOpCommand = (sequence1, commandHandler) -> {};
+        Command<String, String> noOpCommand = (sequence1, commandHandler) -> {};
 
-        final MapCommandHandler<String, String> encodingCommandHandler = new EncodingMapCommandHandler<>(
+        final CommandHandler<String, String> encodingCommandHandler = new EncodingCommandHandler<>(
                 serverId,
                 encodingBuffer,
                 entryEncodingBuffer,
@@ -211,25 +220,27 @@ public class RaftDistributedMapTest {
                 commandPublisher
         );
 
-        final Long2ObjectHashMap<MapCommand<String, String>> inflightCommands = new Long2ObjectHashMap<>();
+        final Long2ObjectHashMap<Command<String, String>> inflightCommands = new Long2ObjectHashMap<>();
 
-        final ProcessStep poller = new MapCommandPoller<>(
-                mapCommandQueue,
+        final ProcessStep poller = new CommandPoller<>(
+                commandQueue,
                 (mapCommand, sequence) -> inflightCommands.put(sequence, mapCommand),
                 sequenceGenerator,
                 encodingCommandHandler);
 
-        final LongFunction<MapCommand<String, String>> commandRemoving = sequence -> {
-            final MapCommand<String, String> command = inflightCommands.remove(sequence);
+        final LongFunction<Command<String, String>> commandRemoving = sequence -> {
+            final Command<String, String> command = inflightCommands.remove(sequence);
             return command != null ? command : noOpCommand;
         };
 
-        final StateMachine mapStateMachine = new MapStateMachine<>(
+        final StateMachine mapStateMachine = new DecodingStateMachine<>(
                 mapId, concurrentMap, stringDeserialiser, stringDeserialiser,
                 commandRemoving);
 
         pollerHandler.accept(poller);
         stateMachineHandler.accept(mapStateMachine, mapId);
+
+        Integer.parseInt("424545");
 
         return map;
     }

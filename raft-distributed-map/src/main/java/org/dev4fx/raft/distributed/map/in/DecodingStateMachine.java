@@ -21,9 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.in;
 
 import org.agrona.DirectBuffer;
+import org.dev4fx.raft.distributed.map.codec.Deserialiser;
+import org.dev4fx.raft.distributed.map.command.Command;
+import org.dev4fx.raft.distributed.map.command.ValueCompletionCommandHandler;
+import org.dev4fx.raft.distributed.map.command.VoidCompletionCommandHandler;
 import org.dev4fx.raft.dmap.sbe.*;
 import org.dev4fx.raft.state.StateMachine;
 
@@ -37,12 +41,12 @@ import java.util.function.LongFunction;
  * @param <K>
  * @param <V>
  */
-public class MapStateMachine<K extends Serializable, V extends Serializable> implements StateMachine {
+public class DecodingStateMachine<K extends Serializable, V extends Serializable> implements StateMachine {
     private final int mapId;
     private final ConcurrentMap<K, V> map;
     private final Deserialiser<K> keyDeserialiser;
     private final Deserialiser<V> valueDeserialiser;
-    private final LongFunction<? extends MapCommand<K, V>> sequenceToCommand;
+    private final LongFunction<? extends Command<K, V>> sequenceToCommand;
 
     private final MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
     private final PutCommandDecoder putCommandDecoder = new PutCommandDecoder();
@@ -50,14 +54,14 @@ public class MapStateMachine<K extends Serializable, V extends Serializable> imp
     private final PutAllCommandDecoder putAllCommandDecoder = new PutAllCommandDecoder();
     private final ClearCommandDecoder clearCommandDecoder = new ClearCommandDecoder();
 
-    private final ValueResultMapCommandHandler<K,V> valueResultProvider = new ValueResultMapCommandHandler<>();
-    private final VoidResultMapCommandHandler<K,V> voidResultProvider = new VoidResultMapCommandHandler<>();
+    private final ValueCompletionCommandHandler<K,V> valueResultProvider = new ValueCompletionCommandHandler<>();
+    private final VoidCompletionCommandHandler<K,V> voidResultProvider = new VoidCompletionCommandHandler<>();
 
-    public MapStateMachine(final int mapId,
-                           final ConcurrentMap<K, V> map,
-                           final Deserialiser<K> keyDeserialiser,
-                           final Deserialiser<V> valueDeserialiser,
-                           final LongFunction<? extends MapCommand<K, V>> sequenceToCommand) {
+    public DecodingStateMachine(final int mapId,
+                                final ConcurrentMap<K, V> map,
+                                final Deserialiser<K> keyDeserialiser,
+                                final Deserialiser<V> valueDeserialiser,
+                                final LongFunction<? extends Command<K, V>> sequenceToCommand) {
         this.mapId = mapId;
         this.map = Objects.requireNonNull(map);
         this.keyDeserialiser = Objects.requireNonNull(keyDeserialiser);

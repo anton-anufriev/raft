@@ -21,13 +21,31 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.command;
 
-
-import org.agrona.DirectBuffer;
+import org.dev4fx.raft.distributed.map.command.*;
 
 import java.io.Serializable;
 
-public interface Deserialiser<T extends Serializable> {
-    T deserialise(DirectBuffer buffer, int offset, int length);
+public class VoidCompletionCommandHandler<K extends Serializable, V extends Serializable> implements CommandHandler<K, V> {
+
+    @Override
+    public void onCommand(final long sequence, final PutCommand<K, V> putCommand) {
+        throw new IllegalStateException("PutCommand results in non-Void value");
+    }
+
+    @Override
+    public void onCommand(final long sequence, final RemoveCommand<K, V> removeCommand) {
+        throw new IllegalStateException("RemoveCommand results in non-Void value");
+    }
+
+    @Override
+    public void onCommand(final long sequence, final PutAllCommand<K, V> putAllCommand) {
+        putAllCommand.complete();
+    }
+
+    @Override
+    public void onCommand(final long sequence, final ClearCommand clearCommand) {
+        clearCommand.complete();
+    }
 }

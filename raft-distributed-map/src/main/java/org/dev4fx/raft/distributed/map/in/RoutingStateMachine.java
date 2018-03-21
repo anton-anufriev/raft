@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.in;
 
 import org.agrona.DirectBuffer;
 import org.dev4fx.raft.dmap.sbe.MessageHeaderDecoder;

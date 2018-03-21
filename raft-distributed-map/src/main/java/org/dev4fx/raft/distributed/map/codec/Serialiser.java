@@ -21,10 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.codec;
+
+
+import org.agrona.MutableDirectBuffer;
 
 import java.io.Serializable;
 
-public interface MapCommand<K extends Serializable, V extends Serializable> {
-    void accept(long sequence, MapCommandHandler<K, V> commandHandler);
+public interface Serialiser<T extends Serializable> {
+    int serialise(T value, MutableDirectBuffer buffer, int offset);
 }

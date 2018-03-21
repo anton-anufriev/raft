@@ -21,29 +21,39 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.command;
 
 import java.io.Serializable;
+import java.util.Map;
+import java.util.Objects;
 
-public class VoidResultMapCommandHandler<K extends Serializable, V extends Serializable> implements MapCommandHandler<K, V> {
+public class PutAllCommand<K extends Serializable, V extends Serializable> implements Command<K, V> {
+    private final int mapId;
+    private final Map<? extends K, ? extends V> values;
+    private final FutureResult<Void> futureResult;
 
-    @Override
-    public void onCommand(final long sequence, final PutCommand<K, V> putCommand) {
-        throw new IllegalStateException("PutCommand results in non-Void value");
+    public PutAllCommand(final int mapId,
+                         final Map<? extends K, ? extends V> values,
+                         final FutureResult<Void> futureResult) {
+        this.mapId = mapId;
+        this.values = Objects.requireNonNull(values);
+        this.futureResult = Objects.requireNonNull(futureResult);
+    }
+
+    public int mapId() {
+        return mapId;
+    }
+
+    public Map<? extends K, ? extends V> values() {
+        return values;
+    }
+
+    public void complete() {
+        futureResult.accept(null);
     }
 
     @Override
-    public void onCommand(final long sequence, final RemoveCommand<K, V> removeCommand) {
-        throw new IllegalStateException("RemoveCommand results in non-Void value");
-    }
-
-    @Override
-    public void onCommand(final long sequence, final PutAllCommand<K, V> putAllCommand) {
-        putAllCommand.setResult();
-    }
-
-    @Override
-    public void onCommand(final long sequence, final ClearCommand clearCommand) {
-        clearCommand.setResult();
+    public void accept(final long sequence, final CommandHandler<K, V> commandHandler) {
+        commandHandler.onCommand(sequence, this);
     }
 }

@@ -23,6 +23,8 @@
  */
 package org.dev4fx.raft.distributed.map;
 
+import org.dev4fx.raft.distributed.map.command.*;
+
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
@@ -32,18 +34,18 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class RaftDistributedMap<K extends Serializable,V extends Serializable> implements DistributedMap<K, V> {
+public class UpdateStreamliningMap<K extends Serializable,V extends Serializable> implements DistributedMap<K, V> {
     private final int mapId;
     private final ConcurrentMap<K, V> map;
-    private final Queue<? super MapCommand<K,V>> commandQueue;
+    private final Queue<? super Command<K,V>> commandQueue;
 
     private SetWrapper<K> keySet;
     private SetWrapper<Entry<K, V>> entrySet;
     private ValuesWrapper values;
 
-    public RaftDistributedMap(final int mapId,
-                              final ConcurrentMap<K, V> map,
-                              final Queue<? super MapCommand<K,V>> commandQueue) {
+    public UpdateStreamliningMap(final int mapId,
+                                 final ConcurrentMap<K, V> map,
+                                 final Queue<? super Command<K,V>> commandQueue) {
         this.mapId = mapId;
         this.map = Objects.requireNonNull(map);
         this.commandQueue = Objects.requireNonNull(commandQueue);
@@ -114,7 +116,7 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
     public Set<K> keySet() {
         final SetWrapper<K> ks = keySet;
         if (ks == null) {
-            final Consumer<K> remover = RaftDistributedMap.this::remove;
+            final Consumer<K> remover = UpdateStreamliningMap.this::remove;
             final Set<K> delegateKeySet = map.keySet();
             return keySet = new SetWrapper<>(delegateKeySet, () -> new IteratorWrapper<>(delegateKeySet.iterator(), k-> k, remover));
         } else {
@@ -136,7 +138,7 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
     public Set<Entry<K, V>> entrySet() {
         final SetWrapper<Entry<K, V>> es = entrySet;
         if (es == null) {
-            final Consumer<Entry<K, V>> remover = entry -> RaftDistributedMap.this.remove(entry.getKey());
+            final Consumer<Entry<K, V>> remover = entry -> UpdateStreamliningMap.this.remove(entry.getKey());
             final Set<Entry<K, V>> delegateEntrySet = map.entrySet();
             return entrySet = new SetWrapper<>(delegateEntrySet, () -> new IteratorWrapper<>(delegateEntrySet.iterator(), k -> k, remover));
         } else {
@@ -223,7 +225,7 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
 
         @Override
         public boolean remove(final Object o) {
-            return RaftDistributedMap.this.remove(0) != null;
+            return UpdateStreamliningMap.this.remove(0) != null;
         }
 
         @Override
@@ -264,12 +266,12 @@ public class RaftDistributedMap<K extends Serializable,V extends Serializable> i
 
         @Override
         public void clear() {
-            RaftDistributedMap.this.clear();
+            UpdateStreamliningMap.this.clear();
         }
     }
 
     private class ValuesWrapper implements Collection<V> {
-        private final Consumer<Entry<K, V>> remover = entry -> RaftDistributedMap.this.remove(entry.getKey());
+        private final Consumer<Entry<K, V>> remover = entry -> UpdateStreamliningMap.this.remove(entry.getKey());
 
         @Override
         public int size() {

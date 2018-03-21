@@ -21,11 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.command;
+
+import org.dev4fx.raft.distributed.map.command.*;
 
 import java.io.Serializable;
 
-public class ValueResultMapCommandHandler<K extends Serializable, V extends Serializable> implements MapCommandHandler<K, V> {
+public class ValueCompletionCommandHandler<K extends Serializable, V extends Serializable> implements CommandHandler<K, V> {
 
     private V result;
 
@@ -35,12 +37,12 @@ public class ValueResultMapCommandHandler<K extends Serializable, V extends Seri
 
     @Override
     public void onCommand(final long sequence, final PutCommand<K, V> putCommand) {
-        putCommand.setResult(result);
+        putCommand.complete(result);
     }
 
     @Override
     public void onCommand(final long sequence, final RemoveCommand<K, V> removeCommand) {
-        removeCommand.setResult(result);
+        removeCommand.complete(result);
     }
 
     @Override

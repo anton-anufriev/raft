@@ -23,6 +23,7 @@
  */
 package org.dev4fx.raft.distributed.map;
 
+import org.dev4fx.raft.distributed.map.command.FutureResult;
 import org.junit.Before;
 import org.junit.Test;
 

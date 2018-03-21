@@ -21,24 +21,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.distributed.map;
+package org.dev4fx.raft.distributed.map.command;
 
 import java.io.Serializable;
 import java.util.Objects;
 
-public class PutCommand<K extends Serializable, V extends Serializable> implements MapCommand<K, V> {
+public class ClearCommand<K extends Serializable, V extends Serializable> implements Command<K, V> {
     private final int mapId;
-    private final K key;
-    private final V value;
-    private final FutureResult<? super V> futureResult;
+    private final FutureResult<Void> futureResult;
 
-    public PutCommand(final int mapId,
-                      final K key,
-                      final V value,
-                      final FutureResult<? super V> futureResult) {
+    public ClearCommand(final int mapId,
+                        final FutureResult<Void> futureResult) {
         this.mapId = mapId;
-        this.key = Objects.requireNonNull(key);
-        this.value = Objects.requireNonNull(value);
         this.futureResult = Objects.requireNonNull(futureResult);
     }
 
@@ -46,20 +40,12 @@ public class PutCommand<K extends Serializable, V extends Serializable> implemen
         return mapId;
     }
 
-    public K key() {
-        return key;
-    }
-
-    public V value() {
-        return value;
-    }
-
-    public void setResult(final V result) {
-        futureResult.accept(result);
+    public void complete() {
+        futureResult.accept(null);
     }
 
     @Override
-    public void accept(long sequence, final MapCommandHandler<K, V> commandHandler) {
+    public void accept(final long sequence, final CommandHandler<K, V> commandHandler) {
         commandHandler.onCommand(sequence, this);
     }
 }
