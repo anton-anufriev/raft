@@ -3,4 +3,5 @@ include 'raft-mmap'
 include 'raft-queue'
 include 'raft-log'
 include 'raft-distributed-map'
+include 'raft-perf'
 

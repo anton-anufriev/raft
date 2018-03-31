@@ -62,6 +62,8 @@ public interface RaftServerBuilder {
     RaftServerBuilder exceptionHandler(final BiConsumer<? super String, ? super Exception> exceptionHandler);
     RaftServerBuilder gracefulShutdownTimeout(final long gracefulShutdownTimeout, final TimeUnit gracefulShutdownTimeunit);
     RaftServerBuilder applicationProcessStepFactory(IntFunction<? extends ProcessStep> processStepFactory);
+    RaftServerBuilder logInMessages(boolean logInMessages);
+    RaftServerBuilder logOutMessages(boolean logOutMessages);
 
     Service.Start build(String logDirectory, int serverId, int clusterSize) throws IOException;
 

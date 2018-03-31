@@ -26,6 +26,8 @@ package org.dev4fx.raft.state;
 import org.dev4fx.raft.timer.Timer;
 
 public interface Peer {
+    long NULL_INDEX = -1;
+
     int serverId();
 
     Timer heartbeatTimer();

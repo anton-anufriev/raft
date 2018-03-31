@@ -97,6 +97,8 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     private long gracefulShutdownTimeout = 10;
     private TimeUnit gracefulShutdownTimeunit = TimeUnit.SECONDS;
     private IntFunction<? extends ProcessStep> applicationProcessStepFactory;
+    private boolean logInMessages = false;
+    private boolean logOutMessages = false;
 
     public DefaultRaftServerBuilder(final Aeron aeron,
                                     final String commandChannel,
@@ -260,6 +262,18 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     }
 
     @Override
+    public RaftServerBuilder logInMessages(final boolean logInMessages) {
+        this.logInMessages = logInMessages;
+        return this;
+    }
+
+    @Override
+    public RaftServerBuilder logOutMessages(final boolean logOutMessages) {
+        this.logOutMessages = logOutMessages;
+        return this;
+    }
+
+    @Override
     public Service.Start build(final String logDirectory, final int serverId, final int clusterSize) throws IOException {
         Objects.requireNonNull(logDirectory);
 
@@ -280,13 +294,12 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
         final AppendRequestDecoder appendRequestDecoder = new AppendRequestDecoder();
         final AppendResponseDecoder appendResponseDecoder = new AppendResponseDecoder();
         final CommandRequestDecoder commandRequestDecoder = new CommandRequestDecoder();
-        final StringBuilder stringBuilder = new StringBuilder();
 
         final UnsafeBuffer commandDecoderBuffer = new UnsafeBuffer();
         final ByteBuffer encoderByteBuffer = ByteBuffer.allocateDirect(encoderBufferSize);
         final UnsafeBuffer encoderBuffer = new UnsafeBuffer(encoderByteBuffer);
 
-        final Publisher publisher = new LoggingPublisher(
+        final Publisher publisher = applyLoggingIfRequired(
                 serverToPublisherFactory.apply(serverId),
                 outLogger,
                 messageHeaderDecoder,
@@ -294,8 +307,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                 voteResponseDecoder,
                 appendRequestDecoder,
                 appendResponseDecoder,
-                commandRequestDecoder,
-                stringBuilder);
+                commandRequestDecoder);
 
         final int regionSizeGranularity = (int) MappedFile.REGION_SIZE_GRANULARITY;
 
@@ -379,7 +391,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
         final Predicate<HeaderDecoder> destinationFilter = DestinationFilter.forServer(serverId);
 
         final ServerState followerServerState = new HeaderFilteringServerState(destinationFilter,
-                new LoggingServerState(
+                applyLoggingIfRequired(
                         new HighTermHandlingServerState(
                                 new FollowerServerState(
                                         serverId,
@@ -388,12 +400,11 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                                         electionTimer,
                                         onFollowerTransitionHandler),
                                 persistentState, inLogger),
-                        stringBuilder,
                         inLogger
                 ));
 
         final ServerState candidateServerState = new HeaderFilteringServerState(destinationFilter,
-                new LoggingServerState(
+                applyLoggingIfRequired(
                         new HighTermHandlingServerState(
                                 new CandidateServerState(persistentState,
                                         peers,
@@ -405,12 +416,11 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                                         encoderBuffer,
                                         publisher),
                                 persistentState, inLogger),
-                        stringBuilder,
                         inLogger
                 ));
 
         final ServerState leaderServerState = new HeaderFilteringServerState(destinationFilter,
-                new LoggingServerState(
+                applyLoggingIfRequired(
                         new HighTermHandlingServerState(
                                 new LeaderServerState(persistentState,
                                         volatileState,
@@ -424,7 +434,6 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                                         onLeaderTransitionHandler,
                                         maxAppendBatchSize),
                                 persistentState, inLogger),
-                        stringBuilder,
                         inLogger
                 ));
 
@@ -477,5 +486,23 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                 gracefulShutdownTimeunit,
                 processSteps.toArray(new ProcessStep[processSteps.size()])
         );
+    }
+
+    private ServerState applyLoggingIfRequired(final ServerState serverState, final Logger logger) {
+        return logInMessages ? new LoggingServerState(serverState, new StringBuilder(), logger) : serverState;
+    }
+
+    private Publisher applyLoggingIfRequired(final Publisher publisher,
+                                             final Logger logger,
+                                             final MessageHeaderDecoder messageHeaderDecoder,
+                                             final VoteRequestDecoder voteRequestDecoder,
+                                             final VoteResponseDecoder voteResponseDecoder,
+                                             final AppendRequestDecoder appendRequestDecoder,
+                                             final AppendResponseDecoder appendResponseDecoder,
+                                             final CommandRequestDecoder commandRequestDecoder) {
+        return logOutMessages ? new LoggingPublisher(publisher, logger,
+                                    messageHeaderDecoder, voteRequestDecoder, voteResponseDecoder, appendRequestDecoder,
+                                    appendResponseDecoder, commandRequestDecoder, new StringBuilder())
+                              : publisher;
     }
 }

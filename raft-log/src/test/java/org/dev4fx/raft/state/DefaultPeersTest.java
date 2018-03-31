@@ -209,4 +209,42 @@ public class DefaultPeersTest {
         assertThat(peers.majorityOfVotes()).isEqualTo(majorityOfVotes);
     }
 
+
+
+    @Test
+    @Spockito.Unroll({
+            "| peer1MatchIndex  | peer1NextIndex  | peer2MatchIndex | peer2NextIndex  | peer3MatchIndex  | peer3NextIndex  | peer4MatchIndex | peer4NextIndex  | matchIndexPrecedingNextIndexAndEqualAtAllPeers  |",
+            "|------------------|-----------------|-----------------|-----------------|------------------|-----------------|-----------------|-----------------|-------------------------------------------------|",
+            "| 10               | 11              | 10              | 11              | 10               | 11              | 10              | 11              | 10                                              |",
+            "| -1               | -1              | 10              | 11              | 10               | 11              | 10              | 11              | -1                                              |",
+            "| 10               | 11              | 10              | 11              | 10               | 11              | -1              | -1              | -1                                              |",
+            "| 10               | 11              | 10              | 11              | 10               | 11              | 9               | 10              | -1                                              |",
+    })
+    public void matchIndexPrecedingNextIndexAndEqualAtAllPeers(final long peer1MatchIndex,
+                                                               final long peer1NextIndex,
+                                                               final long peer2MatchIndex,
+                                                               final long peer2NextIndex,
+                                                               final long peer3MatchIndex,
+                                                               final long peer3NextIndex,
+                                                               final long peer4MatchIndex,
+                                                               final long peer4NextIndex,
+                                                               final long lastEqualMatchIndexAtAllPeers) throws Exception {
+        final int clusterSize = 5;
+        final int leaderId = 0;
+
+        final Peers peers = new DefaultPeers(leaderId, clusterSize, peerId -> {
+            final Peer peer = mock(Peer.class);
+            when(peer.serverId()).thenReturn(peerId);
+            when(peer.matchIndex()).thenReturn(peerId == 1 ? peer1MatchIndex :
+                                               peerId == 2 ? peer2MatchIndex :
+                                               peerId == 3 ? peer3MatchIndex : peer4MatchIndex);
+            when(peer.nextIndex()).thenReturn(peerId == 1 ? peer1NextIndex :
+                                              peerId == 2 ? peer2NextIndex :
+                                              peerId == 3 ? peer3NextIndex : peer4NextIndex);
+
+            return peer;
+        });
+
+        assertThat(peers.matchIndexPrecedingNextIndexAndEqualAtAllPeers()).isEqualTo(lastEqualMatchIndexAtAllPeers);
+    }
 }

@@ -94,7 +94,7 @@ public class LeaderServerState implements ServerState {
         peers.forEach(peer -> {
             if (peer.heartbeatTimer().hasTimeoutElapsed()) {
                 LOGGER.info("Heartbeat timer elapsed, send heartbeat to {}", peer.serverId());
-                sendAppendRequest(peer, false);
+                sendAppendRequest(peer.serverId(), peer.nextIndex(), peer.matchIndex(), false);
                 peer.heartbeatTimer().reset();
             }
         });
@@ -115,7 +115,7 @@ public class LeaderServerState implements ServerState {
             if (!peer.comparePreviousAndDecrementNextIndex(requestPrevLogIndex)) {
                 LOGGER.info("Unsuccessful appendResponse prevLogIndex {} does not match {} from server {}, awaiting newer response", requestPrevLogIndex, peer.previousIndex(), sourceId);
             } else {
-                sendAppendRequest(peer, true);
+                sendAppendRequest(peer.serverId(), peer.nextIndex(), peer.matchIndex(), true);
             }
         } else {
             LOGGER.info("Successful appendResponse from server {}", sourceId);
@@ -124,7 +124,7 @@ public class LeaderServerState implements ServerState {
                 LOGGER.info("Successful appendResponse prevLogIndex {} does not match {}", requestPrevLogIndex, peer.previousIndex());
             }
             if (peer.matchIndex() < persistentState.lastIndex()) {
-                sendAppendRequest(peer, false);
+                sendAppendRequest(peer.serverId(), peer.nextIndex(), peer.matchIndex(), false);
             }
         }
         peer.heartbeatTimer().reset();
@@ -155,17 +155,26 @@ public class LeaderServerState implements ServerState {
     }
 
     private void sendAppendRequestToAllAndResetHeartbeatTimer() {
-        peers.forEach(peer -> {
-            sendAppendRequest(peer, false);
-            peer.heartbeatTimer().reset();
-        });
+        final long matchIndexPrecedingNextIndex = peers.matchIndexPrecedingNextIndexAndEqualAtAllPeers();
+        if (matchIndexPrecedingNextIndex != Peer.NULL_INDEX) {
+            sendAppendRequest(Peers.ALL, matchIndexPrecedingNextIndex + 1, matchIndexPrecedingNextIndex, false);
+            peers.forEach(peer -> peer.heartbeatTimer().reset());
+        } else {
+            peers.forEach(peer -> {
+                sendAppendRequest(peer.serverId(), peer.nextIndex(), peer.matchIndex(), false);
+                peer.heartbeatTimer().reset();
+            });
+        }
     }
 
-    private boolean sendAppendRequest(final Peer peer, final boolean empty) {
+    private boolean sendAppendRequest(final int destinationId,
+                                      final long nextIndex,
+                                      final long matchIndex,
+                                      final boolean empty) {
 
         final int currentTerm = persistentState.currentTerm();
 
-        final long prevLogIndex = peer.previousIndex();
+        final long prevLogIndex = nextIndex - 1;
         final int termAtPrevLogIndex = persistentState.term(prevLogIndex);
 
         final int headerLength = messageHeaderEncoder.wrap(encoderBuffer, 0)
@@ -177,7 +186,7 @@ public class LeaderServerState implements ServerState {
 
         appendRequestEncoder.wrap(encoderBuffer, headerLength)
                 .header()
-                .destinationId(peer.serverId())
+                .destinationId(destinationId)
                 .sourceId(serverId)
                 .term(currentTerm);
 
@@ -190,8 +199,7 @@ public class LeaderServerState implements ServerState {
         if (empty) {
             appendRequestEncoder.logEntriesCount(0);
         } else {
-            final long matchIndex = peer.matchIndex();
-            long nextLogIndex = peer.nextIndex();
+            long nextLogIndex = nextIndex;
             final long lastIndex = persistentState.lastIndex();
 
             if (matchIndex == prevLogIndex) {

@@ -137,4 +137,25 @@ public final class DefaultPeers implements Peers {
         }
         return false;
     }
+
+    @Override
+    public long matchIndexPrecedingNextIndexAndEqualAtAllPeers() {
+        long matchIndex = Peer.NULL_INDEX;
+        long nextIndex = Peer.NULL_INDEX;
+        for (final Peer peer : peers) {
+            if (peer != null && peer.serverId() != serverId) {
+                if (matchIndex == Peer.NULL_INDEX && nextIndex == Peer.NULL_INDEX) {
+                    matchIndex = peer.matchIndex();
+                    nextIndex = peer.nextIndex();
+                }
+
+                if ((peer.matchIndex() != peer.nextIndex() - 1) ||
+                    peer.matchIndex() != matchIndex ||
+                    peer.nextIndex() != nextIndex) {
+                    return Peer.NULL_INDEX;
+                }
+            }
+        }
+        return matchIndex;
+    }
 }

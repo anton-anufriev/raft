@@ -106,12 +106,13 @@ public class LeaderServerStateTest {
         final long commitIndex = 15;
 
         when(persistentState.size()).thenReturn(logSize);
-        when(peer.previousIndex()).thenReturn(peerPrevIndex);
+        when(peer.nextIndex()).thenReturn(peerPrevIndex+1);
         when(persistentState.currentTerm()).thenReturn(currentTerm);
         when(persistentState.term(peerPrevIndex)).thenReturn(peerPrevTerm);
         when(peer.serverId()).thenReturn(peerServerId);
         when(volatileState.commitIndex()).thenReturn(commitIndex);
         when(peer.heartbeatTimer()).thenReturn(timer);
+        when(peers.matchIndexPrecedingNextIndexAndEqualAtAllPeers()).thenReturn(Peer.NULL_INDEX);
 
         //when
         leaderServerState.onTransition();
@@ -193,7 +194,6 @@ public class LeaderServerStateTest {
 
         when(persistentState.lastIndex()).thenReturn(logSize - 1);
 
-        when(peer.previousIndex()).thenReturn(peerPrevIndex);
         when(peer.nextIndex()).thenReturn(peerNexIndex);
 
         when(peer.matchIndex()).thenReturn(peerMatchIndex);
@@ -258,7 +258,6 @@ public class LeaderServerStateTest {
 
         when(persistentState.lastIndex()).thenReturn(logSize - 1);
 
-        when(peer.previousIndex()).thenReturn(matchIndex);
         when(peer.nextIndex()).thenReturn(matchIndex + 1);
 
         when(peer.matchIndex()).thenReturn(matchIndex);
@@ -312,7 +311,8 @@ public class LeaderServerStateTest {
 
         when(peer.comparePreviousAndDecrementNextIndex(prevLogIndex)).thenReturn(true);
 
-        when(peer.previousIndex()).thenReturn(prevLogIndex - 1);
+        when(peer.nextIndex()).thenReturn(prevLogIndex);
+
         when(persistentState.term(prevLogIndex - 1)).thenReturn(prevPrevTerm);
 
         when(peer.serverId()).thenReturn(peerServerId);
@@ -347,7 +347,6 @@ public class LeaderServerStateTest {
 
         when(persistentState.lastIndex()).thenReturn(logSize - 1);
 
-        when(peer.previousIndex()).thenReturn(peerPrevIndex);
         when(peer.nextIndex()).thenReturn(peerNexIndex);
 
         when(peer.matchIndex()).thenReturn(peerMatchIndex);
@@ -358,6 +357,8 @@ public class LeaderServerStateTest {
         when(peer.serverId()).thenReturn(peerServerId);
         when(volatileState.commitIndex()).thenReturn(commitIndex);
         when(peer.heartbeatTimer()).thenReturn(timer);
+        when(peers.matchIndexPrecedingNextIndexAndEqualAtAllPeers()).thenReturn(Peer.NULL_INDEX);
+
 
 
         final String commandText = "This is the command";

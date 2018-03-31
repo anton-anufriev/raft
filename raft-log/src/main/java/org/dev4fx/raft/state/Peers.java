@@ -23,9 +23,10 @@
  */
 package org.dev4fx.raft.state;
 
-import org.dev4fx.raft.transport.Poller;
-
-import java.util.function.*;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.IntConsumer;
+import java.util.function.LongToIntFunction;
 import java.util.stream.IntStream;
 
 public interface Peers {
@@ -56,4 +57,9 @@ public interface Peers {
                 .filter(destinationId -> destinationId != leaderId)
                 .forEach(peerConsumer);
     }
+
+    /**
+     * @return matchIndex that matchIndex = nextIndex - 1 at all peers, otherwise return -1 (Peer.NULL_INDEX)
+     */
+    long matchIndexPrecedingNextIndexAndEqualAtAllPeers();
 }

@@ -68,10 +68,7 @@ public class RaftDistributedMapTest {
         final MediaDriver driver = MediaDriver.launchEmbedded();
         final Aeron.Context ctx = new Aeron.Context()
                 .driverTimeoutMs(1000000)
-                .availableImageHandler(RaftDistributedMapTest::printAvailableImage)
-                .unavailableImageHandler(RaftDistributedMapTest::printUnavailableImage);
-
-        ctx.aeronDirectoryName(driver.aeronDirectoryName());
+                .aeronDirectoryName(driver.aeronDirectoryName());
 
         final Aeron aeron = Aeron.connect(ctx);
 

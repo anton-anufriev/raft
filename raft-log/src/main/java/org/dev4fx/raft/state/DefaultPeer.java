@@ -102,8 +102,8 @@ public final class DefaultPeer implements Peer {
     @Override
     public Peer reset() {
         this.grantedVote = false;
-        this.matchIndex = -1;
-        this.nextIndex = -1;
+        this.matchIndex = NULL_INDEX;
+        this.nextIndex = NULL_INDEX;
         return this;
     }
 }
