@@ -16,15 +16,15 @@ import org.dev4fx.raft.transport.Publisher;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.IntConsumer;
 
-public class RaftPerfTest {
+public class RaftPerf {
+
     public static void main(final String[] args) throws Exception {
 
-        //final MediaDriver driver = MediaDriver.launchEmbedded();
         final Aeron.Context ctx = new Aeron.Context()
                 .driverTimeoutMs(1000000);
-                //.aeronDirectoryName(driver.aeronDirectoryName());
 
         final Aeron aeron = Aeron.connect(ctx);
 
@@ -42,10 +42,14 @@ public class RaftPerfTest {
         final CommandPublisher commandPublisher = new DefaultCommandPublisher(aeronPublisher,
                 new MessageHeaderEncoder(), new CommandRequestEncoder(), new UnsafeBuffer(ByteBuffer.allocateDirect(1024)));
 
+        final AtomicLong receivedSequence = new AtomicLong();
+
         final StateMachine stateMachine = (sourceId, sequence, buffer, offset, length) -> {
             final long timeNanos = buffer.getLong(offset);
             final long latency = System.nanoTime() - timeNanos;
             latencyHistogram.recordValue(latency);
+
+            receivedSequence.set(sequence);
 
             if (sequence == messages) {
                 latencyHistogram.outputPercentileDistribution(System.out, 1.0);
@@ -54,14 +58,14 @@ public class RaftPerfTest {
 
         final IntConsumer commandInjectionKickOff = serverId -> {
             final Thread commandThread = new Thread(() -> {
-                sleep(100000);
+                sleep(10000);
                 final MutableDirectBuffer payloadBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(1024));
 
-                int messageSequence = 1;
+                long messageSequence = 1;
                 while (messageSequence <= messages) {
                     payloadBuffer.putLong(0, System.nanoTime());
                     commandPublisher.publish(serverId, messageSequence, payloadBuffer, 0, 8);
-                    sleep(2000);
+                    while(messageSequence != receivedSequence.getAndSet(0)) {}
                     messageSequence++;
                 }
             });

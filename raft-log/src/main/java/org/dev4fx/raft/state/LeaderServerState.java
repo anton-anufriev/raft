@@ -121,10 +121,11 @@ public class LeaderServerState implements ServerState {
             LOGGER.info("Successful appendResponse from server {}", sourceId);
             final long matchLogIndex = appendResponseDecoder.matchLogIndex();
             if (!peer.comparePreviousAndUpdateMatchAndNextIndex(requestPrevLogIndex, matchLogIndex)) {
-                LOGGER.info("Successful appendResponse prevLogIndex {} does not match {}", requestPrevLogIndex, peer.previousIndex());
-            }
-            if (peer.matchIndex() < persistentState.lastIndex()) {
-                sendAppendRequest(peer.serverId(), peer.nextIndex(), peer.matchIndex(), false);
+                LOGGER.info("Successful appendResponse prevLogIndex {} does not match {} from server {}, awaiting newer response", requestPrevLogIndex, peer.previousIndex(), sourceId);
+            } else {
+                if (peer.matchIndex() < persistentState.lastIndex()) {
+                    sendAppendRequest(peer.serverId(), peer.nextIndex(), peer.matchIndex(), false);
+                }
             }
         }
         peer.heartbeatTimer().reset();
