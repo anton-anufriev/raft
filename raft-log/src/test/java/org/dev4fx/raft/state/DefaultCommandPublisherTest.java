@@ -45,7 +45,7 @@ public class DefaultCommandPublisherTest {
     private Publisher publisher;
     private MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
     private CommandRequestEncoder commandRequestEncoder = new CommandRequestEncoder();
-    private MutableDirectBuffer encoderBuffer = new UnsafeBuffer(ByteBuffer.allocate(512));
+    private MutableDirectBuffer encoderBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(512));
 
     private CommandPublisher commandPublisher;
 

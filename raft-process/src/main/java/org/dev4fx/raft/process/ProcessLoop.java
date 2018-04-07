@@ -23,7 +23,6 @@
  */
 package org.dev4fx.raft.process;
 
-import org.agrona.concurrent.IdleStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

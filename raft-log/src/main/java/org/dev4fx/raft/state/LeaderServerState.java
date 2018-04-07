@@ -32,7 +32,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import java.util.function.LongToIntFunction;
 
 public class LeaderServerState implements ServerState {
     private static final Logger LOGGER = LoggerFactory.getLogger(Role.LEADER.name());
@@ -49,6 +51,11 @@ public class LeaderServerState implements ServerState {
     private final Publisher publisher;
     private final IntConsumer onLeaderTransitionHandler;
     private final int maxBatchSize;
+
+    private final LongToIntFunction indexToTermLookup;
+    private final Consumer<Peer> sendAppendRequestAndResetHeartbeatTimerForAll;
+    private final Consumer<Peer> resetHeartbeatTimerForAll;
+
 
 
     public LeaderServerState(final PersistentState persistentState,
@@ -73,6 +80,15 @@ public class LeaderServerState implements ServerState {
         this.publisher = Objects.requireNonNull(publisher);
         this.onLeaderTransitionHandler = Objects.requireNonNull(onLeaderTransitionHandler);
         this.maxBatchSize = maxBatchSize;
+        this.indexToTermLookup = this.persistentState::term;
+
+        this.sendAppendRequestAndResetHeartbeatTimerForAll = peer -> {
+            sendAppendRequest(peer.serverId(), peer.nextIndex(), peer.matchIndex(), false);
+            peer.heartbeatTimer().reset();
+        };
+
+        this.resetHeartbeatTimerForAll = peer -> peer.heartbeatTimer().reset();
+
     }
 
 
@@ -111,17 +127,17 @@ public class LeaderServerState implements ServerState {
         final Peer peer = peers.peer(sourceId);
         final BooleanType successful = appendResponseDecoder.successful();
         if (successful == BooleanType.F) {
-            LOGGER.info("Unsuccessful appendResponse from server {}", sourceId);
+            //LOGGER.info("Unsuccessful appendResponse from server {}", sourceId);
             if (!peer.comparePreviousAndDecrementNextIndex(requestPrevLogIndex)) {
-                LOGGER.info("Unsuccessful appendResponse prevLogIndex {} does not match {} from server {}, awaiting newer response", requestPrevLogIndex, peer.previousIndex(), sourceId);
+                //LOGGER.info("Unsuccessful appendResponse prevLogIndex {} does not match {} from server {}, awaiting newer response", requestPrevLogIndex, peer.previousIndex(), sourceId);
             } else {
                 sendAppendRequest(peer.serverId(), peer.nextIndex(), peer.matchIndex(), true);
             }
         } else {
-            LOGGER.info("Successful appendResponse from server {}", sourceId);
+            //LOGGER.info("Successful appendResponse from server {}", sourceId);
             final long matchLogIndex = appendResponseDecoder.matchLogIndex();
             if (!peer.comparePreviousAndUpdateMatchAndNextIndex(requestPrevLogIndex, matchLogIndex)) {
-                LOGGER.info("Successful appendResponse prevLogIndex {} does not match {} from server {}, awaiting newer response", requestPrevLogIndex, peer.previousIndex(), sourceId);
+                //LOGGER.info("Successful appendResponse prevLogIndex {} does not match {} from server {}, awaiting newer response", requestPrevLogIndex, peer.previousIndex(), sourceId);
             } else {
                 if (peer.matchIndex() < persistentState.lastIndex()) {
                     sendAppendRequest(peer.serverId(), peer.nextIndex(), peer.matchIndex(), false);
@@ -135,7 +151,7 @@ public class LeaderServerState implements ServerState {
 
     @Override
     public Transition onCommandRequest(DirectBuffer buffer, int offset, int length) {
-        LOGGER.info("Command received, length={}", length);
+        //LOGGER.info("Command received, length={}", length);
         persistentState.append(persistentState.currentTerm(), buffer, offset, length);
         sendAppendRequestToAllAndResetHeartbeatTimer();
 
@@ -147,10 +163,10 @@ public class LeaderServerState implements ServerState {
         int currentTerm = persistentState.currentTerm();
 
         //FIXME check term at NULL_INDEX
-        long nextCommitIndex = peers.majorityCommitIndex(currentCommitIndex, currentTerm, persistentState::term);
+        long nextCommitIndex = peers.majorityCommitIndex(currentCommitIndex, currentTerm, indexToTermLookup);
 
         if (nextCommitIndex > currentCommitIndex) {
-            LOGGER.info("Update commit index {}", nextCommitIndex);
+            //LOGGER.info("Update commit index {}", nextCommitIndex);
             volatileState.commitIndex(nextCommitIndex);
         }
     }
@@ -159,12 +175,9 @@ public class LeaderServerState implements ServerState {
         final long matchIndexPrecedingNextIndex = peers.matchIndexPrecedingNextIndexAndEqualAtAllPeers();
         if (matchIndexPrecedingNextIndex != Peer.NULL_INDEX) {
             sendAppendRequest(Peers.ALL, matchIndexPrecedingNextIndex + 1, matchIndexPrecedingNextIndex, false);
-            peers.forEach(peer -> peer.heartbeatTimer().reset());
+            peers.forEach(resetHeartbeatTimerForAll);
         } else {
-            peers.forEach(peer -> {
-                sendAppendRequest(peer.serverId(), peer.nextIndex(), peer.matchIndex(), false);
-                peer.heartbeatTimer().reset();
-            });
+            peers.forEach(sendAppendRequestAndResetHeartbeatTimerForAll);
         }
     }
 

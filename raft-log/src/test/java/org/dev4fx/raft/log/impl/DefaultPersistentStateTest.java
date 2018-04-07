@@ -109,7 +109,7 @@ public class DefaultPersistentStateTest {
         final String testMessage = "#------------------------------------------------#\n";
                                     //    ---------------------------------------------#
 
-        final ByteBuffer byteBuffer = ByteBuffer.allocate(testMessage.getBytes().length);
+        final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(testMessage.getBytes().length);
         final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(byteBuffer);
         unsafeBuffer.putBytes(0, testMessage.getBytes());
 

@@ -57,6 +57,8 @@ compileJava.dependsOn generateCodecs
 
 dependencies {
     compile project(':raft-mmap')
+    compile project(':raft-process')
+
     //compile group: 'org.agrona', name: 'agrona', version: '0.9.13'
     compile 'io.aeron:aeron-all:1.8.0'
 //    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'

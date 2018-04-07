@@ -53,7 +53,7 @@ public class AppendRequestHandlerTest {
     private Timer electionTimeout;
     private AppendResponseEncoder appendResponseEncoder = new AppendResponseEncoder();
     private MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
-    private MutableDirectBuffer encoderBuffer = new UnsafeBuffer(ByteBuffer.allocate(512));
+    private MutableDirectBuffer encoderBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(512));
 
 
     @Mock

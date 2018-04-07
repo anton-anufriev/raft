@@ -23,8 +23,6 @@
  */
 package org.dev4fx.raft.process;
 
-import org.agrona.concurrent.IdleStrategy;
-
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;

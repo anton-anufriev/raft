@@ -60,7 +60,7 @@ public class Bootstrap {
 
         final String testMessage = "#------------------------------------------------#\n";
 
-        final ByteBuffer byteBuffer = ByteBuffer.allocate(testMessage.getBytes().length);
+        final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(testMessage.getBytes().length);
         final UnsafeBuffer commandPayloadEncoderBuffer = new UnsafeBuffer(byteBuffer);
         commandPayloadEncoderBuffer.putBytes(0, testMessage.getBytes());
         final int commandPayloadLength = testMessage.getBytes().length;

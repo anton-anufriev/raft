@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class LoggingStateMachineTest {
 
-    private UnsafeBuffer directBuffer = new UnsafeBuffer(ByteBuffer.allocate(512));
+    private UnsafeBuffer directBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(512));
     private StringBuilder stringBuilder = new StringBuilder();
     private MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
     private CommandRequestEncoder encoder = new CommandRequestEncoder();

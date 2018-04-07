@@ -104,7 +104,7 @@ public class HighTermHandlingServerState implements ServerState {
         final int messageTerm = headerDecoder.term();
         final int currentTerm = persistentState.currentTerm();
         if (messageTerm > currentTerm) {
-            logger.info("Updating to higher term {} from current {}", messageTerm, currentTerm);
+            //logger.info("Updating to higher term {} from current {}", messageTerm, currentTerm);
             persistentState.clearVoteForAndSetCurrentTerm(messageTerm);
             return true;
         }

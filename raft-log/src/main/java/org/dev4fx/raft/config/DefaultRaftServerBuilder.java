@@ -26,7 +26,6 @@ package org.dev4fx.raft.config;
 import io.aeron.Aeron;
 import org.agrona.IoUtil;
 import org.agrona.concurrent.BackoffIdleStrategy;
-import org.agrona.concurrent.IdleStrategy;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.dev4fx.raft.mmap.api.FileSizeEnsurer;
 import org.dev4fx.raft.log.api.PersistentState;
@@ -35,6 +34,7 @@ import org.dev4fx.raft.mmap.impl.MappedFile;
 import org.dev4fx.raft.mmap.impl.RegionFactory;
 import org.dev4fx.raft.mmap.impl.RegionRingAccessor;
 import org.dev4fx.raft.mmap.impl.RegionRingFactory;
+import org.dev4fx.raft.process.IdleStrategy;
 import org.dev4fx.raft.process.Process;
 import org.dev4fx.raft.process.ProcessStep;
 import org.dev4fx.raft.process.Service;
@@ -65,7 +65,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
         e.printStackTrace();
         throw new RuntimeException(e);
     };
-    private static final IntFunction<? extends IdleStrategy>  DEFAULT_IDLE_STRATEGY_FACTORY = serverId -> new BackoffIdleStrategy(100L, 100L, 10L, 100L);
+    private static final IntFunction<? extends IdleStrategy>  DEFAULT_IDLE_STRATEGY_FACTORY = serverId -> new BackoffIdleStrategy(100L, 100L, 10L, 100L)::idle;
     private static final RegionRingFactory DEFAULT_REGION_RING_FACTORY = RegionRingFactory.forSync(RegionFactory.SYNC);
     private static final IntFunction<? extends StateMachine> DEFAULT_STATE_MACHINE_FACTORY = serverId -> new LoggingStateMachine(serverId, new StringBuilder());
     private static final long MAX_FILE_SIZE = 64 * 16 * 1024 * 1024;
@@ -85,6 +85,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     private int maxPromotionBatchSize = 1;
     private int maxAppendBatchSize = 1;
     private RegionRingFactory regionRingFactory;
+    private Runnable onRegionRingsCreatedHandler = () -> {};
     private int regionRingSize = 4;
     private int indexRegionsToMapAhead = 1;
     private int payloadRegionsToMapAhead = 1;
@@ -191,6 +192,12 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     @Override
     public RaftServerBuilder regionRingFactory(final RegionRingFactory regionRingFactory) {
         this.regionRingFactory = Objects.requireNonNull(regionRingFactory);
+        return this;
+    }
+
+    @Override
+    public RaftServerBuilder onRegionRingsCreatedHandler(final Runnable onRegionRingsCreatedHandler) {
+        this.onRegionRingsCreatedHandler = onRegionRingsCreatedHandler;
         return this;
     }
 
@@ -364,6 +371,8 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                 payloadRegionSize,
                 payloadRegionsToMapAhead,
                 payloadMappedFile::close);
+
+        onRegionRingsCreatedHandler.run();
 
         final Supplier<Timer> heartbeatTimerFactory = () -> new DefaultTimer(clock, heartbeatTimeoutMillis, heartbeatTimeoutMillis);
 

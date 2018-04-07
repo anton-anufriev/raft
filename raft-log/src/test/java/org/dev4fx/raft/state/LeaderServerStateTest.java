@@ -76,8 +76,8 @@ public class LeaderServerStateTest {
     private int maxBatchSize = 1;
     private AppendRequestEncoder appendRequestEncoder = new AppendRequestEncoder();
     private MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
-    private MutableDirectBuffer encoderBuffer = new UnsafeBuffer(ByteBuffer.allocate(512));
-    private MutableDirectBuffer commandDecoderBuffer = new UnsafeBuffer(ByteBuffer.allocate(512));
+    private MutableDirectBuffer encoderBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(512));
+    private MutableDirectBuffer commandDecoderBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(512));
 
 
     private LeaderServerState leaderServerState;

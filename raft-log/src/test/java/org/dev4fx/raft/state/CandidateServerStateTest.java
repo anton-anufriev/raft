@@ -71,7 +71,7 @@ public class CandidateServerStateTest {
 
     private MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
     private VoteRequestEncoder voteRequestEncoder = new VoteRequestEncoder();
-    private MutableDirectBuffer encoderBuffer = new UnsafeBuffer(ByteBuffer.allocate(512));
+    private MutableDirectBuffer encoderBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(512));
 
     @Mock
     private Publisher publisher;

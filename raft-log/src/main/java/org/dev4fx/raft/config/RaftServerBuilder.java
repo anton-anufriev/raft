@@ -24,8 +24,8 @@
 package org.dev4fx.raft.config;
 
 import io.aeron.Aeron;
-import org.agrona.concurrent.IdleStrategy;
 import org.dev4fx.raft.mmap.impl.RegionRingFactory;
+import org.dev4fx.raft.process.IdleStrategy;
 import org.dev4fx.raft.process.ProcessStep;
 import org.dev4fx.raft.process.Service;
 import org.dev4fx.raft.state.StateMachine;
@@ -51,6 +51,7 @@ public interface RaftServerBuilder {
     RaftServerBuilder maxPromotionBatchSize(final int maxPromotionBatchSize);
     RaftServerBuilder maxAppendBatchSize(final int maxAppendBatchSize);
     RaftServerBuilder regionRingFactory(final RegionRingFactory regionRingFactory);
+    RaftServerBuilder onRegionRingsCreatedHandler(final Runnable onRegionRingsCreatedHandler);
     RaftServerBuilder regionRingSize(final int regionRingSize);
     RaftServerBuilder indexRegionsToMapAhead(final int indexRegionsToMapAhead);
     RaftServerBuilder payloadRegionsToMapAhead(final int payloadRegionsToMapAhead);

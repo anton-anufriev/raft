@@ -50,7 +50,7 @@ public class VoteRequestHandlerTest {
 
     private MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
     private VoteResponseEncoder voteResponseEncoder = new VoteResponseEncoder();
-    private MutableDirectBuffer encoderBuffer = new UnsafeBuffer(ByteBuffer.allocate(512));
+    private MutableDirectBuffer encoderBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(512));
 
     @Mock
     private Publisher publisher;

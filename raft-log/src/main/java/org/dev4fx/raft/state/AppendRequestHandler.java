@@ -147,10 +147,10 @@ public class AppendRequestHandler implements BiFunction<AppendRequestDecoder, Lo
                             appendRequestDecoder.buffer(),
                             offset,
                             length);
-                    logger.info("Appended index {}, term {}, offset {}, length {}", nextIndex, nextTermAtIndex, offset, length);
+                    //logger.info("Appended index {}, term {}, offset {}, length {}", nextIndex, nextTermAtIndex, offset, length);
                     break;
                 case IN:
-                    logger.info("Skipped index {}, term {}", nextIndex, nextTermAtIndex);
+                    //logger.info("Skipped index {}, term {}", nextIndex, nextTermAtIndex);
                     break;
                 default:
                     throw new IllegalStateException("Should not be in conflict");
