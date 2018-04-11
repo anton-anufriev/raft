@@ -85,7 +85,6 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     private int maxPromotionBatchSize = 1;
     private int maxAppendBatchSize = 1;
     private RegionRingFactory regionRingFactory;
-    private Runnable onRegionRingsCreatedHandler = () -> {};
     private int regionRingSize = 4;
     private int indexRegionsToMapAhead = 1;
     private int payloadRegionsToMapAhead = 1;
@@ -192,12 +191,6 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     @Override
     public RaftServerBuilder regionRingFactory(final RegionRingFactory regionRingFactory) {
         this.regionRingFactory = Objects.requireNonNull(regionRingFactory);
-        return this;
-    }
-
-    @Override
-    public RaftServerBuilder onRegionRingsCreatedHandler(final Runnable onRegionRingsCreatedHandler) {
-        this.onRegionRingsCreatedHandler = onRegionRingsCreatedHandler;
         return this;
     }
 
@@ -372,7 +365,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
                 payloadRegionsToMapAhead,
                 payloadMappedFile::close);
 
-        onRegionRingsCreatedHandler.run();
+        regionRingFactory.onComplete();
 
         final Supplier<Timer> heartbeatTimerFactory = () -> new DefaultTimer(clock, heartbeatTimeoutMillis, heartbeatTimeoutMillis);
 

@@ -29,9 +29,11 @@ import org.dev4fx.raft.mmap.api.Processor;
 import org.dev4fx.raft.mmap.api.Region;
 
 import java.nio.channels.FileChannel;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+@FunctionalInterface
 public interface RegionRingFactory {
     Region[] create(int ringSize,
                     int regionSize,
@@ -39,26 +41,42 @@ public interface RegionRingFactory {
                     FileSizeEnsurer fileSizeEnsurer,
                     FileChannel.MapMode mapMode);
 
-    static <T extends AsyncRegion> RegionRingFactory forAsync(final RegionFactory<T> regionFactory, final Consumer<Processor> processorConsumer) {
-        return (ringSize, regionSize, fileChannelSupplier, fileSizeEnsurer, mapMode) -> {
-            final AsyncRegion[] regions = new AsyncRegion[ringSize];
+    default void onComplete() {}
 
-            for (int i = 0; i < ringSize; i++) {
-                regions[i] = regionFactory.create(regionSize, fileChannelSupplier, fileSizeEnsurer, mapMode);
+    static <T extends AsyncRegion> RegionRingFactory forAsync(final RegionFactory<T> regionFactory, final Consumer<Processor> processorConsumer, final Runnable onComplete) {
+        Objects.requireNonNull(regionFactory);
+        Objects.requireNonNull(processorConsumer);
+        Objects.requireNonNull(onComplete);
+
+        return new RegionRingFactory() {
+            @Override
+            public Region[] create(final int ringSize, final int regionSize, final Supplier<FileChannel> fileChannelSupplier, final FileSizeEnsurer fileSizeEnsurer, final FileChannel.MapMode mapMode) {
+                final AsyncRegion[] regions = new AsyncRegion[ringSize];
+
+                for (int i = 0; i < ringSize; i++) {
+                    regions[i] = regionFactory.create(regionSize, fileChannelSupplier, fileSizeEnsurer, mapMode);
+                }
+
+                processorConsumer.accept(() -> {
+                    boolean processed = false;
+                    for (final Processor region : regions) {
+                        processed |= region.process();
+                    }
+                    return processed;
+                });
+                return regions;
             }
 
-            processorConsumer.accept(() -> {
-                boolean processed = false;
-                for (final Processor region : regions) {
-                    processed |= region.process();
-                }
-                return processed;
-            });
-            return regions;
+            @Override
+            public void onComplete() {
+                onComplete.run();
+            }
         };
     }
 
     static <T extends Region> RegionRingFactory forSync(final RegionFactory<T> regionFactory) {
+        Objects.requireNonNull(regionFactory);
+
         return (ringSize, regionSize, fileChannelSupplier, fileSizeEnsurer, mapMode) -> {
             final Region[] regions = new Region[ringSize];
 

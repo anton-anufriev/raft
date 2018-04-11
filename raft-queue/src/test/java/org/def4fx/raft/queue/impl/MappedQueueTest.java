@@ -48,30 +48,33 @@ public class MappedQueueTest {
     public static void main(String... args) throws Exception {
         final String fileName = FileUtil.sharedMemDir("regiontest").getAbsolutePath();
         LOGGER.info("File: {}", fileName);
-        final int regionSize = (int) Math.max(MappedFile.REGION_SIZE_GRANULARITY, 1L << 16) * 1024;//64 KB
+        final int regionSize = (int) Math.max(MappedFile.REGION_SIZE_GRANULARITY, 1L << 16) * 1024 * 4;//64 KB
         LOGGER.info("regionSize: {}", regionSize);
 
 
-        final List<Processor> processors = new ArrayList<>(2);
-        final RegionRingFactory asyncFactory = RegionRingFactory.forAsync(RegionFactory.ASYNC_VOLATILE_STATE_MACHINE, processors::add);
-        final RegionRingFactory syncFactory = RegionRingFactory.forSync(RegionFactory.SYNC);
+//        final List<Processor> processors = new ArrayList<>(2);
+//        final RegionRingFactory regionRingFactory = RegionRingFactory.forAsync(RegionFactory.ASYNC_VOLATILE_STATE_MACHINE, processors::add,
+//                () -> {
+//                    final Thread thread = new Thread(() -> {
+//                        final Processor[] processors1 = processors.toArray(new Processor[processors.size()]);
+//                        while (true) {
+//                            for(final Processor processor : processors1) {
+//                                processor.process();
+//                            }
+//                        }
+//                    });
+//                    thread.setName("async-processor");
+//                    thread.setDaemon(true);
+//                    thread.setUncaughtExceptionHandler((t, e) -> LOGGER.error("{} {}", e, t));
+//                    thread.start();
+//                });
+        final RegionRingFactory regionRingFactory = RegionRingFactory.forSync(RegionFactory.SYNC);
+        //final RegionRingFactory regionRingFactory = asyncFactory;
 
-        final MappedQueue mappedQueue = new MappedQueue(fileName, regionSize, asyncFactory, 4, 1,64 * 16 * 1024 * 1024);
+        final MappedQueue mappedQueue = new MappedQueue(fileName, regionSize, regionRingFactory, 4, 1,64L * 16 * 1024 * 1024 * 4);
         final Appender appender = mappedQueue.appender();
 
-        final Thread thread = new Thread(() -> {
-            final Processor[] processors1 = processors.toArray(new Processor[processors.size()]);
-            while (true) {
-                for(final Processor processor : processors1) {
-                    processor.process();
-                }
-            }
-        });
-        thread.setName("async-processor");
-        thread.setDaemon(true);
-        thread.setUncaughtExceptionHandler((t, e) -> LOGGER.error("{} {}", e, t));
-        thread.start();
-
+        regionRingFactory.onComplete();
 
         final String testMessage = "#------------------------------------------------#\n";
 
