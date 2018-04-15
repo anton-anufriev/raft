@@ -52,6 +52,10 @@ public class MutableProcessStepChain {
         return runningStep;
     }
 
+    public ProcessStep getOrNoop() {
+        return runningStep == null ? ProcessStep.NO_OP : runningStep;
+    }
+
     public static MutableProcessStepChain create() {
         return new MutableProcessStepChain();
     }

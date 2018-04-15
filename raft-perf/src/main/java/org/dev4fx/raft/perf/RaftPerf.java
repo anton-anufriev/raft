@@ -8,6 +8,7 @@ import org.agrona.concurrent.UnsafeBuffer;
 import org.dev4fx.raft.config.RaftServerBuilder;
 import org.dev4fx.raft.mmap.impl.RegionFactory;
 import org.dev4fx.raft.mmap.impl.RegionRingFactory;
+import org.dev4fx.raft.process.MutableProcessStepChain;
 import org.dev4fx.raft.process.Process;
 import org.dev4fx.raft.process.Service;
 import org.dev4fx.raft.sbe.CommandRequestEncoder;
@@ -23,9 +24,28 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.IntConsumer;
+import java.util.function.Supplier;
 
 public class RaftPerf {
     private final static Logger LOGGER = LoggerFactory.getLogger(RaftPerf.class);
+
+    private static final Supplier<RegionRingFactory> ASYNC = () -> {
+        final MutableProcessStepChain processStepChain = new MutableProcessStepChain();
+        return RegionRingFactory.forAsync(RegionFactory.ASYNC_VOLATILE_STATE_MACHINE,
+                processor -> processStepChain.thenStep(processor::process),
+                () -> {
+                    final Process regionMapper = new Process("RegionMapper",
+                            () -> {}, () -> {},
+                            new BusySpinIdleStrategy()::idle,
+                            (s, e) -> LOGGER.error("{} {}", s, e, e),
+                            10, TimeUnit.SECONDS,
+                            processStepChain.getOrNoop()
+                    );
+                    regionMapper.start();
+                });
+    };
+    private static final Supplier<RegionRingFactory> SYNC = () -> RegionRingFactory.forSync(RegionFactory.SYNC);
+
 
     public static void main(final String[] args) throws Exception {
 
@@ -44,6 +64,8 @@ public class RaftPerf {
         final RegionMappingConfig regionMappingConfig = RegionMappingConfig.valueOf(args[4]);
         final String serverChannel = args[5]; // "aeron:ipc";
         final String raftDirectory = args[6]; //"/Users/anton/IdeaProjects/raftPerf";
+        final int indexRegionSize = Integer.parseInt(args[7]);
+        final int payloadRegionSize = Integer.parseInt(args[8]);
 
 
         final Histogram latencyHistogram = new Histogram(1, TimeUnit.MINUTES.toNanos(10),3);
@@ -58,7 +80,8 @@ public class RaftPerf {
 
             if (sequence > warmUpMessages) {
                 final long timeNanos = buffer.getLong(offset);
-                final long latency = Long.max(System.nanoTime() - timeNanos, 1);
+                //final long latency = Long.max(System.nanoTime() - timeNanos, 1);
+                final long latency = System.nanoTime() - timeNanos;
                 latencyHistogram.recordValue(latency);
             }
 
@@ -71,7 +94,7 @@ public class RaftPerf {
 
         final IntConsumer commandInjectionKickOff = serverId -> {
             final Thread commandThread = new Thread(() -> {
-                sleep(30000);
+                sleep(10000);
                 final MutableDirectBuffer payloadBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(1024));
 
                 long messageSequence = 1;
@@ -85,29 +108,12 @@ public class RaftPerf {
             commandThread.start();
         };
 
-        final RegionRingFactory regionRingFactory;
-
-        if (regionMappingConfig == RegionMappingConfig.ASYNC) {
-            final RegionMappingProcessStepBuilder regionMappingProcessStepBuilder = new RegionMappingProcessStepBuilder();
-            regionRingFactory = RegionRingFactory.forAsync(RegionFactory.ASYNC_VOLATILE_STATE_MACHINE, regionMappingProcessStepBuilder,
-                    () -> {
-                        final Process regionMapper = new Process("RegionMapper",
-                                () -> {}, () -> {},
-                                new BusySpinIdleStrategy()::idle,
-                                (s, e) -> LOGGER.error("{} {}", s, e, e),
-                                10, TimeUnit.SECONDS,
-                                regionMappingProcessStepBuilder.build()
-                        );
-                        regionMapper.start();
-                    });
-        } else {
-            regionRingFactory = RegionRingFactory.forSync(RegionFactory.SYNC);
-        }
-
         final RaftServerBuilder builder = RaftServerBuilder
                 .forAeronTransport(aeron, commandChannel, commandStreamId, serverId -> serverChannel)
                 .maxAppendBatchSize(4)
-                .regionRingFactory(regionRingFactory)
+                .payloadRegionSize(payloadRegionSize) //4096 * 512 * 256
+                .indexRegionSize(indexRegionSize) //4096 * 512 * 128
+                .regionRingFactory(regionMappingConfig.get())
                 .idleStrategyFactory(serverId -> new BusySpinIdleStrategy()::idle)
                 .stateMachineFactory(serverId -> stateMachine)
                 .onLeaderTransitionHandler(commandInjectionKickOff);
@@ -125,8 +131,18 @@ public class RaftPerf {
         }
     }
 
-    private enum RegionMappingConfig {
-        SYNC,
-        ASYNC
+    private enum RegionMappingConfig implements Supplier<RegionRingFactory> {
+        SYNC {
+            @Override
+            public RegionRingFactory get() {
+                return RaftPerf.SYNC.get();
+            }
+        },
+        ASYNC {
+            @Override
+            public RegionRingFactory get() {
+                return RaftPerf.ASYNC.get();
+            }
+        }
     }
 }

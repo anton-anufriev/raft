@@ -15,7 +15,6 @@ public class RegionMappingProcessStepBuilder implements Consumer<Processor>{
     }
 
     public ProcessStep build() {
-        final ProcessStep processStep = processStepChain.getOrNull();
-        return processStep == null ? ProcessStep.NO_OP : processStep;
+        return processStepChain.getOrNoop();
     }
 }

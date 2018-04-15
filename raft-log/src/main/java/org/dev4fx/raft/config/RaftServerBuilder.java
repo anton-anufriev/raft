@@ -54,8 +54,8 @@ public interface RaftServerBuilder {
     RaftServerBuilder regionRingSize(final int regionRingSize);
     RaftServerBuilder indexRegionsToMapAhead(final int indexRegionsToMapAhead);
     RaftServerBuilder payloadRegionsToMapAhead(final int payloadRegionsToMapAhead);
-    RaftServerBuilder indexRegionSizeGranularityMultiplier(final int indexRegionSizeGranularityMultiplier);
-    RaftServerBuilder payloadRegionSizeGranularityMultiplier(final int payloadRegionSizeGranularityMultiplier);
+    RaftServerBuilder indexRegionSize(final int indexRegionSize);
+    RaftServerBuilder payloadRegionSize(final int payloadRegionSize);
     RaftServerBuilder encoderBufferSize(final int encoderBufferSize);
     RaftServerBuilder clock(final Clock clock);
     RaftServerBuilder idleStrategyFactory(final IntFunction<? extends IdleStrategy> idleStrategyFactory);

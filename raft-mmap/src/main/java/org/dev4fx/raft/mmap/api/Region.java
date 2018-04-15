@@ -28,6 +28,10 @@ import org.agrona.IoUtil;
 
 import java.nio.channels.FileChannel;
 
+/**
+ * A region of a file that maps a certain block of file to a memory address.
+ * Once mapped, client DirectBuffers can be wrapped to the pre-mapped memory.
+ */
 public interface Region extends RegionAccessor, RegionMapper {
     interface IoUnMapper {
         IoUnMapper DEFAULT = IoUtil::unmap;

@@ -27,6 +27,9 @@ import org.agrona.DirectBuffer;
 
 import java.io.Closeable;
 
+/**
+ * Accessor to a file region.
+ */
 public interface RegionAccessor extends Closeable {
     /**
      * Wraps the buffer starting from given position to the end of the mapped region.

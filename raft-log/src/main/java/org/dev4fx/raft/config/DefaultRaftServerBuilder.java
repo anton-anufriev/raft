@@ -24,6 +24,7 @@
 package org.dev4fx.raft.config;
 
 import io.aeron.Aeron;
+import org.agrona.BitUtil;
 import org.agrona.IoUtil;
 import org.agrona.concurrent.BackoffIdleStrategy;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -61,6 +62,7 @@ import java.util.function.*;
 import java.util.stream.IntStream;
 
 public class DefaultRaftServerBuilder implements RaftServerBuilder {
+    private static final int DEFAULT_REGION_SIZE = 4096 * 1024;
     private static final BiConsumer<? super String, ? super Exception> DEFAULT_EXCEPTION_HANDLER = (s, e) -> {
         e.printStackTrace();
         throw new RuntimeException(e);
@@ -88,8 +90,8 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     private int regionRingSize = 4;
     private int indexRegionsToMapAhead = 1;
     private int payloadRegionsToMapAhead = 1;
-    private int indexRegionSizeGranularityMultiplier = 512;
-    private int payloadRegionSizeGranularityMultiplier = 1024;
+    private int indexRegionSize = DEFAULT_REGION_SIZE;
+    private int payloadRegionSize = DEFAULT_REGION_SIZE;
     private int encoderBufferSize = 8024;
     private Clock clock = Clock.DEFAULT;
     private IntFunction<? extends IdleStrategy> idleStrategyFactory;
@@ -213,14 +215,14 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
     }
 
     @Override
-    public RaftServerBuilder indexRegionSizeGranularityMultiplier(final int indexRegionSizeGranularityMultiplier) {
-        this.indexRegionSizeGranularityMultiplier = indexRegionSizeGranularityMultiplier;
+    public RaftServerBuilder indexRegionSize(final int indexRegionSize) {
+        this.indexRegionSize = indexRegionSize;
         return this;
     }
 
     @Override
-    public RaftServerBuilder payloadRegionSizeGranularityMultiplier(final int payloadRegionSizeGranularityMultiplier) {
-        this.payloadRegionSizeGranularityMultiplier = payloadRegionSizeGranularityMultiplier;
+    public RaftServerBuilder payloadRegionSize(final int payloadRegionSize) {
+        this.payloadRegionSize = payloadRegionSize;
         return this;
     }
 
@@ -318,8 +320,8 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
         final File payloadFile = new File(logDirectory, "logPayload" + serverId);
 
         final int headerRegionSize = regionSizeGranularity;
-        final int indexRegionSize = regionSizeGranularity * indexRegionSizeGranularityMultiplier;
-        final int payloadRegionSize = regionSizeGranularity * payloadRegionSizeGranularityMultiplier;
+        final int indexRegionSize = BitUtil.align(this.indexRegionSize, regionSizeGranularity);
+        final int payloadRegionSize = BitUtil.align(this.payloadRegionSize, regionSizeGranularity);
 
 
         final MappedFile headerMappedFile = new MappedFile(headerFile, MappedFile.Mode.READ_WRITE,

@@ -28,12 +28,15 @@ import org.dev4fx.raft.mmap.api.Region;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
@@ -123,6 +126,30 @@ public class RegionRingAccessorTest {
         inOrder.verify(region4).close();
         inOrder.verify(onClose).run();
     }
+
+    @Test
+    public void wrap_when_backwards_direction_approaching_0_position() throws Exception {
+        //given
+        ArgumentCaptor<Long> positionArgumentCaptor = ArgumentCaptor.forClass(Long.class);
+
+        final Region[] regions = new Region[] {region1, region2, region3, region4};
+        regionRingAccessor = new RegionRingAccessor(regions, regionSize, 1, onClose);
+
+        when(region2.wrap(regionSize + 45, directBuffer)).thenReturn(true);
+        regionRingAccessor.wrap(regionSize + 45, directBuffer);
+        inOrder.verify(region2).wrap(regionSize + 45, directBuffer);
+        inOrder.verify(region3).map(2 * regionSize);
+
+
+        when(region1.wrap(45, directBuffer)).thenReturn(true);
+
+        //when
+        regionRingAccessor.wrap(45, directBuffer);
+        inOrder.verify(region1).wrap(45, directBuffer);
+        inOrder.verify(region4, never()).map(anyLong());
+        inOrder.verify(region2).unmap();
+    }
+
 
     @Test
     public void size() throws Exception {

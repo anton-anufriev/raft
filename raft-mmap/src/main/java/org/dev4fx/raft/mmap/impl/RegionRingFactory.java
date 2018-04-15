@@ -33,6 +33,9 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+/**
+ * Region ring factory.
+ */
 @FunctionalInterface
 public interface RegionRingFactory {
     Region[] create(int ringSize,
@@ -43,7 +46,9 @@ public interface RegionRingFactory {
 
     default void onComplete() {}
 
-    static <T extends AsyncRegion> RegionRingFactory forAsync(final RegionFactory<T> regionFactory, final Consumer<Processor> processorConsumer, final Runnable onComplete) {
+    static <T extends AsyncRegion> RegionRingFactory forAsync(final RegionFactory<T> regionFactory,
+                                                              final Consumer<Processor> processorConsumer,
+                                                              final Runnable onComplete) {
         Objects.requireNonNull(regionFactory);
         Objects.requireNonNull(processorConsumer);
         Objects.requireNonNull(onComplete);

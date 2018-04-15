@@ -27,7 +27,7 @@ public interface RegionMapper {
     /**
      * Attempts to map a region.
      * In synchronous implementations, it is expected to be mapped immediately,
-     *    if not mapped yet.
+     *    if not mapped yet, and true is returned.
      * In asynchronous implementations, if the region is not mapped yet, mapping
      *    will be performed asynchronously and false will be returned.
      *

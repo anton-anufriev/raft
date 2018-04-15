@@ -78,7 +78,8 @@ public class RegionRingAccessor implements RegionAccessor {
             } else if (currentAbsoluteIndex > absoluteIndex) { // moving backward
                 for (int i = 1; i <= regionsToMapAhead; i++) {
                     final long mapIndex = absoluteIndex - i;
-                    regions[(int) (mapIndex & regionsLengthMask)].map(mapIndex * regionSize);
+                    if (mapIndex >= 0)
+                        regions[(int) (mapIndex & regionsLengthMask)].map(mapIndex * regionSize);
                 }
 //                for (long mapIndex = absoluteIndex - 1; mapIndex >= 0 && mapIndex >= absoluteIndex - regionsToMapAhead; mapIndex--) {
 //                    regions[(int) (mapIndex % regionsLength)].map(mapIndex * regionSize);
