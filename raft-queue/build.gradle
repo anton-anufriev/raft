@@ -21,6 +21,7 @@ license {
 
 dependencies {
     compile project(':raft-mmap')
+    compile project(':raft-process')
 
     compile group: 'org.agrona', name: 'agrona', version: '0.9.13'
     testCompile 'org.hdrhistogram:HdrHistogram:2.1.9'

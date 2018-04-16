@@ -25,6 +25,7 @@ package org.def4fx.raft.queue.impl;
 
 import org.HdrHistogram.Histogram;
 import org.agrona.DirectBuffer;
+import org.agrona.concurrent.BusySpinIdleStrategy;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.def4fx.raft.queue.api.Appender;
 import org.def4fx.raft.queue.api.Poller;
@@ -33,14 +34,50 @@ import org.def4fx.raft.queue.util.HistogramPrinter;
 import org.dev4fx.raft.mmap.impl.MappedFile;
 import org.dev4fx.raft.mmap.api.RegionFactory;
 import org.dev4fx.raft.mmap.api.RegionRingFactory;
+import org.dev4fx.raft.process.Process;
+import org.dev4fx.raft.process.MutableProcessStepChain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public class MappedQueueTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(MappedQueueTest.class);
+
+    private static final Supplier<RegionRingFactory> ASYNC = () -> {
+        final MutableProcessStepChain processStepChain = new MutableProcessStepChain();
+        return RegionRingFactory.forAsync(RegionFactory.ASYNC_VOLATILE_STATE_MACHINE,
+                processor -> processStepChain.thenStep(processor::process),
+                () -> {
+                    final Process regionMapper = new Process("RegionMapper",
+                            () -> {}, () -> {},
+                            new BusySpinIdleStrategy()::idle,
+                            (s, e) -> LOGGER.error("{} {}", s, e, e),
+                            10, TimeUnit.SECONDS,
+                            processStepChain.getOrNoop()
+                    );
+                    regionMapper.start();
+                });
+    };
+    private static final Supplier<RegionRingFactory> SYNC = () -> RegionRingFactory.forSync(RegionFactory.SYNC);
+
+    private enum RegionMappingConfig implements Supplier<RegionRingFactory> {
+        SYNC {
+            @Override
+            public RegionRingFactory get() {
+                return MappedQueueTest.SYNC.get();
+            }
+        },
+        ASYNC {
+            @Override
+            public RegionRingFactory get() {
+                return MappedQueueTest.ASYNC.get();
+            }
+        }
+    }
+
 
     public static void main(String... args) throws Exception {
         final String fileName = FileUtil.sharedMemDir("regiontest").getAbsolutePath();
@@ -48,25 +85,8 @@ public class MappedQueueTest {
         final int regionSize = (int) Math.max(MappedFile.REGION_SIZE_GRANULARITY, 1L << 16) * 1024 * 4;//64 KB
         LOGGER.info("regionSize: {}", regionSize);
 
-
-//        final List<Processor> processors = new ArrayList<>(2);
-//        final RegionRingFactory regionRingFactory = RegionRingFactory.forAsync(RegionFactory.ASYNC_VOLATILE_STATE_MACHINE, processors::add,
-//                () -> {
-//                    final Thread thread = new Thread(() -> {
-//                        final Processor[] processors1 = processors.toArray(new Processor[processors.size()]);
-//                        while (true) {
-//                            for(final Processor processor : processors1) {
-//                                processor.process();
-//                            }
-//                        }
-//                    });
-//                    thread.setName("async-processor");
-//                    thread.setDaemon(true);
-//                    thread.setUncaughtExceptionHandler((t, e) -> LOGGER.error("{} {}", e, t));
-//                    thread.start();
-//                });
-        final RegionRingFactory regionRingFactory = RegionRingFactory.forSync(RegionFactory.SYNC);
-        //final RegionRingFactory regionRingFactory = asyncFactory;
+        final RegionMappingConfig regionMappingConfig = RegionMappingConfig.valueOf(args[0]);
+        final RegionRingFactory regionRingFactory = regionMappingConfig.get();
 
         final MappedQueue mappedQueue = new MappedQueue(fileName, regionSize, regionRingFactory, 4, 1,64L * 16 * 1024 * 1024 * 4);
         final Appender appender = mappedQueue.appender();
