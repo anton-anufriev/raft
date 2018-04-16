@@ -24,7 +24,7 @@
 package org.dev4fx.raft.config;
 
 import io.aeron.Aeron;
-import org.dev4fx.raft.mmap.impl.RegionRingFactory;
+import org.dev4fx.raft.mmap.api.RegionRingFactory;
 import org.dev4fx.raft.process.IdleStrategy;
 import org.dev4fx.raft.process.ProcessStep;
 import org.dev4fx.raft.process.Service;

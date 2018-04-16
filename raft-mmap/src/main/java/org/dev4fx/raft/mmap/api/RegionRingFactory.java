@@ -21,12 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.mmap.impl;
-
-import org.dev4fx.raft.mmap.api.AsyncRegion;
-import org.dev4fx.raft.mmap.api.FileSizeEnsurer;
-import org.dev4fx.raft.mmap.api.Processor;
-import org.dev4fx.raft.mmap.api.Region;
+package org.dev4fx.raft.mmap.api;
 
 import java.nio.channels.FileChannel;
 import java.util.Objects;

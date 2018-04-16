@@ -31,7 +31,7 @@ import org.def4fx.raft.queue.api.Queue;
 import org.dev4fx.raft.mmap.impl.FileInitialiser;
 import org.dev4fx.raft.mmap.impl.MappedFile;
 import org.dev4fx.raft.mmap.impl.RegionRingAccessor;
-import org.dev4fx.raft.mmap.impl.RegionRingFactory;
+import org.dev4fx.raft.mmap.api.RegionRingFactory;
 
 import java.io.IOException;
 

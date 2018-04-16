@@ -21,11 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.dev4fx.raft.mmap.impl;
+package org.dev4fx.raft.mmap.api;
 
-import org.dev4fx.raft.mmap.api.AsyncRegion;
-import org.dev4fx.raft.mmap.api.FileSizeEnsurer;
-import org.dev4fx.raft.mmap.api.Region;
+import org.dev4fx.raft.mmap.impl.AsyncAtomicExchangeRegion;
+import org.dev4fx.raft.mmap.impl.AsyncAtomicStateMachineRegion;
+import org.dev4fx.raft.mmap.impl.AsyncVolatileStateMachineRegion;
+import org.dev4fx.raft.mmap.impl.SyncRegion;
 
 import java.nio.channels.FileChannel;
 import java.util.concurrent.TimeUnit;

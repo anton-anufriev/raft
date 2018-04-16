@@ -26,20 +26,17 @@ package org.def4fx.raft.queue.impl;
 import org.HdrHistogram.Histogram;
 import org.agrona.DirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
-import org.dev4fx.raft.mmap.api.Processor;
 import org.def4fx.raft.queue.api.Appender;
 import org.def4fx.raft.queue.api.Poller;
 import org.def4fx.raft.queue.util.FileUtil;
 import org.def4fx.raft.queue.util.HistogramPrinter;
 import org.dev4fx.raft.mmap.impl.MappedFile;
-import org.dev4fx.raft.mmap.impl.RegionFactory;
-import org.dev4fx.raft.mmap.impl.RegionRingFactory;
+import org.dev4fx.raft.mmap.api.RegionFactory;
+import org.dev4fx.raft.mmap.api.RegionRingFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class MappedQueueTest {
@@ -132,6 +129,5 @@ public class MappedQueueTest {
         }
 
         pollerThread.join();
-
     }
 }

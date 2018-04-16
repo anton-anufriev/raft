@@ -27,6 +27,8 @@ package org.dev4fx.raft.log.impl;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.dev4fx.raft.mmap.api.FileSizeEnsurer;
 import org.dev4fx.raft.io.FileUtil;
+import org.dev4fx.raft.mmap.api.RegionFactory;
+import org.dev4fx.raft.mmap.api.RegionRingFactory;
 import org.dev4fx.raft.mmap.impl.*;
 import org.junit.Before;
 import org.junit.Test;

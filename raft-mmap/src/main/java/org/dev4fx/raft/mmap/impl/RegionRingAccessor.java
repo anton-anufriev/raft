@@ -37,7 +37,6 @@ public class RegionRingAccessor implements RegionAccessor {
     private final int regionSize;
     private final Runnable onClose;
     private final int regionsLengthMask;
-    private final int regionSizeMask;
 
     private long currentAbsoluteIndex = -1;
 
@@ -52,7 +51,6 @@ public class RegionRingAccessor implements RegionAccessor {
         assertPowerOfTwo(regionsLength, v -> "regionsLength must be a power of two, but is " + v);
         assertPowerOfTwo(regionSize, v -> "regionSize must be a power of two, but is " + v);
         regionsLengthMask = regionsLength - 1;
-        regionSizeMask = regionSize - 1;
     }
 
     private void assertPowerOfTwo(final int value, final LongFunction<String> comment) {
@@ -66,31 +64,18 @@ public class RegionRingAccessor implements RegionAccessor {
         final boolean wrapped = regions[(int) (absoluteIndex & regionsLengthMask)].wrap(position, buffer);
         if (wrapped) {
             if (currentAbsoluteIndex < absoluteIndex) { // moving forward
-                for (int i = 1; i <= regionsToMapAhead; i++) {
-                    final long mapIndex = absoluteIndex + i;
+                for (long mapIndex = absoluteIndex + 1; mapIndex <= absoluteIndex + regionsToMapAhead; mapIndex++) {
                     regions[(int) (mapIndex & regionsLengthMask)].map(mapIndex * regionSize);
                 }
-//                for (long mapIndex = absoluteIndex + 1; mapIndex <= absoluteIndex + regionsToMapAhead; mapIndex++) {
-//                    regions[(int) (mapIndex % regionsLength)].map(mapIndex * regionSize);
-//                }
-                if (currentAbsoluteIndex >= 0)
-                    regions[(int) (currentAbsoluteIndex & regionsLengthMask)].unmap();
+                if (currentAbsoluteIndex >= 0) regions[(int) (currentAbsoluteIndex & regionsLengthMask)].unmap();
             } else if (currentAbsoluteIndex > absoluteIndex) { // moving backward
-                for (int i = 1; i <= regionsToMapAhead; i++) {
-                    final long mapIndex = absoluteIndex - i;
-                    if (mapIndex >= 0)
-                        regions[(int) (mapIndex & regionsLengthMask)].map(mapIndex * regionSize);
+                for (long mapIndex = absoluteIndex - 1; mapIndex >= 0 && mapIndex >= absoluteIndex - regionsToMapAhead; mapIndex--) {
+                    regions[(int) (mapIndex & regionsLengthMask)].map(mapIndex * regionSize);
                 }
-//                for (long mapIndex = absoluteIndex - 1; mapIndex >= 0 && mapIndex >= absoluteIndex - regionsToMapAhead; mapIndex--) {
-//                    regions[(int) (mapIndex % regionsLength)].map(mapIndex * regionSize);
-//                }
-                if (currentAbsoluteIndex >= 0)
-                    regions[(int) (currentAbsoluteIndex & regionsLengthMask)].unmap();
-
+                if (currentAbsoluteIndex >= 0) regions[(int) (currentAbsoluteIndex & regionsLengthMask)].unmap();
             }
         }
         currentAbsoluteIndex = absoluteIndex;
-
         return wrapped;
     }
 
