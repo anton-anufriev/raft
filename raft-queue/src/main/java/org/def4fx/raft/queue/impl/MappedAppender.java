@@ -43,6 +43,19 @@ public class MappedAppender implements Appender {
         this.regionAccessor = Objects.requireNonNull(regionAccessor);
         this.alignment = alignment;
         if (Integer.bitCount(alignment) > 1) throw new IllegalArgumentException("alignment " + alignment + " must be power of two");
+        moveToLastAppendPosition();
+    }
+
+    private void moveToLastAppendPosition() {
+        if (position == 0) {
+            int length = 0;
+            do {
+                position += length;
+                if (regionAccessor.wrap(position, unsafeBuffer)) {
+                    length = Math.abs(unsafeBuffer.getInt(0));
+                }
+            } while (length > 0);
+        }
     }
 
     @Override
@@ -50,12 +63,9 @@ public class MappedAppender implements Appender {
         final int messageLength = length + LENGTH_SIZE;
 
         final int paddedMessageLength = BitUtil.align(messageLength, alignment);
-//        final int cacheLineRemainder = messageLength & alignmentMask;
-//        final int paddedMessageLength = cacheLineRemainder == 0 ? messageLength :
-//                messageLength + alignment - cacheLineRemainder;
 
         if (paddedMessageLength > regionAccessor.size()) {
-            throw new IllegalStateException("Length is too big");
+            throw new IllegalStateException("Length is too big for a region size");
         }
 
         if (regionAccessor.wrap(position, unsafeBuffer)) {

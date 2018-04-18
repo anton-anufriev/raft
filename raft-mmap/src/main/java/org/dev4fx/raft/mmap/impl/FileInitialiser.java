@@ -42,7 +42,7 @@ public class FileInitialiser {
                 final FileLock lock = fileChannel.lock();
                 try {
                     fileChannel.truncate(0);
-                    fileChannel.transferFrom(InitialBytes.MINUS_ONE, 0, 8);
+                    fileChannel.transferFrom(InitialBytes.ZERO, 0, 8);
                     fileChannel.force(true);
                 } finally {
                     lock.release();

@@ -33,12 +33,26 @@ import java.util.function.Supplier;
  */
 @FunctionalInterface
 public interface RegionRingFactory {
+    /**
+     * Creates array of regions based on the length of the array and size of a region.
+     * @param ringSize
+     * @param regionSize
+     * @param fileChannelSupplier
+     * @param fileSizeEnsurer
+     * @param mapMode
+     * @return array of Regions
+     */
     Region[] create(int ringSize,
                     int regionSize,
                     Supplier<FileChannel> fileChannelSupplier,
                     FileSizeEnsurer fileSizeEnsurer,
                     FileChannel.MapMode mapMode);
 
+    /**
+     * Should be invoked once all regions are created.
+     * For async regions, it will register async processors to be polled
+     * in a separate thread.
+     */
     default void onComplete() {}
 
     static <T extends AsyncRegion> RegionRingFactory forAsync(final RegionFactory<T> regionFactory,

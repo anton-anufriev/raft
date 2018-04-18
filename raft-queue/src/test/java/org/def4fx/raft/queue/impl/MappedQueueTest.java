@@ -89,9 +89,11 @@ public class MappedQueueTest {
         final RegionRingFactory regionRingFactory = regionMappingConfig.get();
 
         final MappedQueue mappedQueue = new MappedQueue(fileName, regionSize, regionRingFactory, 4, 1,64L * 16 * 1024 * 1024 * 4);
-        final Appender appender = mappedQueue.appender();
-
         regionRingFactory.onComplete();
+
+        final Appender appender = mappedQueue.appender();
+        final Poller poller = mappedQueue.poller();
+
 
         final String testMessage = "#------------------------------------------------#\n";
 
@@ -105,10 +107,9 @@ public class MappedQueueTest {
 
         final long messagesPerSecond = 90000;
         final long maxNanosPerMessage = 1000000000 / messagesPerSecond;
-        final int messages = 2000000;
+        final int messages = 2500000;
         final int warmup = 100000;
 
-        final Poller poller = mappedQueue.poller();
 
         final Thread pollerThread = new Thread(() -> {
             final Histogram histogram = new Histogram(1, TimeUnit.SECONDS.toNanos(1), 3);
