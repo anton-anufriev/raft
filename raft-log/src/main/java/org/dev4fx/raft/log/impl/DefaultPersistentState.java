@@ -31,6 +31,7 @@ import org.dev4fx.raft.log.api.PersistentState;
 import java.util.Objects;
 
 public class DefaultPersistentState implements PersistentState {
+    private static final int NULL_POSITION = -1;
     private static final int TERM_OFFSET = 0;
     private static final int TERM_SIZE = 4;
 
@@ -48,51 +49,70 @@ public class DefaultPersistentState implements PersistentState {
     private static final int INDEX_ROW_SIZE = TERM_SIZE + PAYLOAD_POSITION_SIZE + PAYLOAD_LENGTH_SIZE;
 
     private final RegionAccessor indexAccessor;
-    private final RegionAccessor payLoadAccessor;
+    private final RegionAccessor payloadAccessor;
     private final RegionAccessor headerAccessor;
 
     private final UnsafeBuffer headerBuffer;
     private final UnsafeBuffer indexBuffer;
     private final UnsafeBuffer payloadBuffer;
 
+    private long payloadNextAppendPosition;
+
     public DefaultPersistentState(final RegionAccessor indexAccessor,
-                                  final RegionAccessor payLoadAccessor,
+                                  final RegionAccessor payloadAccessor,
                                   final RegionAccessor headerAccessor) {
         this.indexAccessor = Objects.requireNonNull(indexAccessor);
-        this.payLoadAccessor = Objects.requireNonNull(payLoadAccessor);
+        this.payloadAccessor = Objects.requireNonNull(payloadAccessor);
         this.headerAccessor = Objects.requireNonNull(headerAccessor);
         headerBuffer = new UnsafeBuffer();
         indexBuffer = new UnsafeBuffer();
         payloadBuffer = new UnsafeBuffer();
         headerAccessor.wrap(0, headerBuffer);
+        resetPayloadNextAppendPosition();
+    }
+
+    private void initPayloadNextAppendPosition(final long lastIndex) {
+        if (payloadNextAppendPosition == NULL_POSITION) {
+            if (lastIndex > NULL_INDEX) {
+                wrapIndex(lastIndex);
+                final long lastPayloadPosition = indexPayloadPosition();
+                final int lastPayloadLength = indexPayloadLength();
+                payloadNextAppendPosition = lastPayloadPosition + lastPayloadLength;
+            } else {
+                payloadNextAppendPosition = 0;
+            }
+        }
+    }
+
+    private void resetPayloadNextAppendPosition() {
+        payloadNextAppendPosition = NULL_POSITION;
+    }
+
+    private void incrementPayloadNextAppendPosition(final long length) {
+        payloadNextAppendPosition += length;
     }
 
     @Override
     public void append(final int term, final DirectBuffer buffer, final int offset, final int length) {
         final long lastIndex = lastIndex();
-        long newPayloadPosition = 0;
-        if (lastIndex > NULL_INDEX) {
-            wrapIndex(lastIndex);
-            final long lastPayloadPosition = indexPayloadPosition();
-            final int lastPayloadLength = indexPayloadLength();
-            newPayloadPosition = lastPayloadPosition + lastPayloadLength;
-        }
+        initPayloadNextAppendPosition(lastIndex);
 
-        if (payLoadAccessor.wrap(newPayloadPosition, payloadBuffer)) {
+        if (payloadAccessor.wrap(payloadNextAppendPosition, payloadBuffer)) {
             if (payloadBuffer.capacity() < length) {
-                newPayloadPosition = newPayloadPosition + payloadBuffer.capacity();
-                if (!payLoadAccessor.wrap(newPayloadPosition, payloadBuffer)) {
-                    throw new IllegalStateException("Failed to wrap payload buffer for position " + newPayloadPosition);
+                incrementPayloadNextAppendPosition(payloadBuffer.capacity());
+                if (!payloadAccessor.wrap(payloadNextAppendPosition, payloadBuffer)) {
+                    throw new IllegalStateException("Failed to wrap payload buffer for position " + payloadNextAppendPosition);
                 }
             }
             buffer.getBytes(offset, payloadBuffer, 0, length);
             wrapIndex(lastIndex + 1);
             indexTerm(term);
-            indexPayloadPosition(newPayloadPosition);
+            indexPayloadPosition(payloadNextAppendPosition);
             indexPayloadLength(length);
             size(size() + 1);
+            incrementPayloadNextAppendPosition(length);
         } else {
-            throw new IllegalStateException("Failed to wrap payload buffer for position " + newPayloadPosition);
+            throw new IllegalStateException("Failed to wrap payload buffer for position " + payloadNextAppendPosition);
         }
     }
 
@@ -177,7 +197,7 @@ public class DefaultPersistentState implements PersistentState {
             wrapIndex(index);
             final long payloadPosition = indexPayloadPosition();
             final int payloadLength = indexPayloadLength();
-            if (payLoadAccessor.wrap(payloadPosition, payloadBuffer)) {
+            if (payloadAccessor.wrap(payloadPosition, payloadBuffer)) {
                 buffer.wrap(payloadBuffer, 0, payloadLength);
             } else {
                 throw new IllegalStateException("Failed to wrap payload buffer for position " + payloadPosition);
@@ -192,6 +212,7 @@ public class DefaultPersistentState implements PersistentState {
         final long currentSize = size();
         if (size >= 0 && size <= currentSize) {
             size(size);
+            resetPayloadNextAppendPosition();
         } else {
             throw new IllegalArgumentException("Size [" + size + "] must be positive and <= current size " + currentSize);
         }
@@ -199,7 +220,7 @@ public class DefaultPersistentState implements PersistentState {
 
     @Override
     public void close() {
-        payLoadAccessor.close();
+        payloadAccessor.close();
         indexAccessor.close();
         headerAccessor.close();
     }
