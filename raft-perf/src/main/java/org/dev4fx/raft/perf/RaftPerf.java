@@ -66,6 +66,7 @@ public class RaftPerf {
         final String raftDirectory = args[6]; //"/Users/anton/IdeaProjects/raftPerf";
         final int indexRegionSize = Integer.parseInt(args[7]);
         final int payloadRegionSize = Integer.parseInt(args[8]);
+        final int payloadAppendLength = 1;
 
 
         final Histogram latencyHistogram = new Histogram(1, TimeUnit.MINUTES.toNanos(10),3);
@@ -100,7 +101,8 @@ public class RaftPerf {
                 long messageSequence = 1;
                 while (messageSequence <= messages) {
                     payloadBuffer.putLong(0, System.nanoTime());
-                    commandPublisher.publish(serverId, messageSequence, payloadBuffer, 0, 8);
+                    payloadBuffer.setMemory(8, payloadAppendLength, (byte) 1);
+                    commandPublisher.publish(serverId, messageSequence, payloadBuffer, 0, 8 + payloadAppendLength);
                     while(messageSequence != receivedSequence.getAndSet(0)) {}
                     messageSequence++;
                 }

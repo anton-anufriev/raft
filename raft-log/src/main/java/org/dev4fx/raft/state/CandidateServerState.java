@@ -122,7 +122,7 @@ public class CandidateServerState implements ServerState {
         if (term == currentTerm && voteGranted == BooleanType.T) {
             LOGGER.info("Vote granted by server {}", sourceId);
             peers.peer(sourceId).setGrantedVote(true);
-            return checkGrandedVotes();
+            return checkGrantedVotes();
         }
         LOGGER.info("Vote declined by server {}", sourceId);
         return Transition.STEADY;
@@ -157,7 +157,7 @@ public class CandidateServerState implements ServerState {
         publisher.publish(encoderBuffer, 0, headerLength + voteRequestEncoder.encodedLength());
     }
 
-    private Transition checkGrandedVotes() {
+    private Transition checkGrantedVotes() {
         if (peers.majorityOfVotes()) {
             LOGGER.info("Received votes majority of votes");
             return Transition.TO_LEADER_NO_REPLAY;
