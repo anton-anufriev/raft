@@ -472,14 +472,7 @@ public class DefaultRaftServerBuilder implements RaftServerBuilder {
         }
 
         final Runnable onProcessStart = serverMessageHandler::init;
-        final Runnable onProcessStop = () -> {
-            headerRegionRingAccessor.close();
-            indexRegionRingAccessor.close();
-            payloadRegionRingAccessor.close();
-            headerMappedFile.close();
-            indexMappedFile.close();
-            payloadMappedFile.close();
-        };
+        final Runnable onProcessStop = persistentState::close;
 
         return new Process("Server" + serverId,
                 onProcessStart,
